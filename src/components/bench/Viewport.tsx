@@ -29,7 +29,7 @@ const PAL = {
   pin: "#d5ddd4",
   pinBot: "#93a4ae",
   nail: "#8fa396",
-  hot: "#e7ebe4",
+  hot: "#ff3333",
   net: "#8fa396",
   trace: "#e23b3b",
   text: "#d7ddd4",
@@ -221,6 +221,7 @@ export function Viewport({ board, projectId, overlays, urls, unitsPerMm, ref }: 
       const bw = Math.abs(b.x - a.x);
       const bh = Math.abs(b.y - a.y);
       const selected = index === current.selectedPart;
+      ctx.lineWidth = selected ? 2.5 : 1;
       ctx.strokeStyle = selected ? PAL.hot : part.side === "bottom" ? PAL.partBot : PAL.partTop;
       ctx.globalAlpha = selected || !current.selectedNet ? 0.95 : 0.35;
       ctx.setLineDash(part.side === "bottom" ? [3, 3] : []);
@@ -228,7 +229,7 @@ export function Viewport({ board, projectId, overlays, urls, unitsPerMm, ref }: 
       ctx.setLineDash([]);
       if ((selected || (!underlay && bw > 36)) && bw > 18) {
         ctx.globalAlpha = selected ? 1 : 0.8;
-        ctx.fillStyle = PAL.text;
+        ctx.fillStyle = selected ? PAL.hot : PAL.text;
         ctx.font = `500 ${Math.max(10, Math.min(13, bw / 8))}px "IBM Plex Sans", sans-serif`;
         ctx.textAlign = "center";
         ctx.textBaseline = "middle";

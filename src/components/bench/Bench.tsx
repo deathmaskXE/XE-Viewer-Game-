@@ -222,7 +222,7 @@ export function Bench() {
       />
       <header className="flex flex-wrap items-center gap-2 border-b border-border px-3 py-2">
         <div className="mr-1 min-w-0">
-          <h1 className="text-base font-medium tracking-tight">Mesa</h1>
+          <h1 className="text-base font-medium tracking-tight">XE Game Viewer</h1>
           <p className="text-xs text-muted">Boardview, overlays y diagramas</p>
         </div>
         <Button variant="primary" onClick={() => fileRef.current?.click()}>
