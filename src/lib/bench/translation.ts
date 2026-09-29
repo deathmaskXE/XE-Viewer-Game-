@@ -16,7 +16,10 @@ export const LANGUAGES = [
 
 export type LanguageCode = (typeof LANGUAGES)[number]["code"];
 
-async function recognizeImage(image: Blob | string, language: LanguageCode, status: (text: string) => void): Promise<string> {
+export type TextRegion = { text: string; x: number; y: number; width: number; height: number; translated?: string };
+export type ReadResult = { text: string; pages: number; regions: TextRegion[]; width: number; height: number };
+
+async function recognizeImage(image: Blob | string, language: LanguageCode, status: (text: string) => void): Promise<Omit<ReadResult, "pages">> {
   const { createWorker } = await import("tesseract.js");
   const code = LANGUAGES.find((item) => item.code === language)?.ocr ?? "eng";
   status("Descargando el lector de texto… La primera vez puede tardar.");
@@ -27,7 +30,14 @@ async function recognizeImage(image: Blob | string, language: LanguageCode, stat
   });
   try {
     const result = await worker.recognize(image);
-    return result.data.text.trim();
+    const data = result.data as typeof result.data & { blocks?: Array<{ paragraphs?: Array<{ lines?: Array<{ text: string; bbox: { x0: number; y0: number; x1: number; y1: number } }> }> }> };
+    const regions = (data.blocks ?? []).flatMap((block) => (block.paragraphs ?? []).flatMap((paragraph) => paragraph.lines ?? []))
+      .filter((line) => line.text.trim().length > 1)
+      .map((line) => ({ text: line.text.trim(), x: line.bbox.x0, y: line.bbox.y0, width: line.bbox.x1 - line.bbox.x0, height: line.bbox.y1 - line.bbox.y0 }));
+    const dimensions = await createImageBitmap(image instanceof Blob ? image : await fetch(image).then((response) => response.blob()));
+    const width = dimensions.width, height = dimensions.height;
+    dimensions.close();
+    return { text: result.data.text.trim(), regions, width, height };
   } finally {
     await worker.terminate();
   }
@@ -40,7 +50,7 @@ export async function readImageText(options: {
   language: LanguageCode;
   page: number;
   status: (text: string) => void;
-}): Promise<{ text: string; pages: number }> {
+}): Promise<ReadResult> {
   const { url, name, mime, language, page, status } = options;
   if (mime.includes("pdf") || /\.pdf$/i.test(name)) {
     status("Leyendo la página del PDF…");
@@ -56,7 +66,7 @@ export async function readImageText(options: {
       const sheet = await document.getPage(page);
       const content = await sheet.getTextContent();
       const text = content.items.map((item) => "str" in item ? item.str : "").join(" ").trim();
-      if (text.length > 20) return { text, pages: document.numPages };
+      // Render every page for consistent OCR coordinates over the visible page.
       status("La página es una imagen; reconociendo letras…");
       const original = sheet.getViewport({ scale: 1 });
       const viewport = sheet.getViewport({ scale: Math.min(2.5, 2400 / Math.max(original.width, original.height)) });
@@ -66,7 +76,7 @@ export async function readImageText(options: {
       await sheet.render({ canvas, canvasContext: context, viewport }).promise;
       const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/png"));
       if (!blob) throw new Error("No pude convertir la página en imagen.");
-      return { text: await recognizeImage(blob, language, status), pages: document.numPages };
+      return { ...await recognizeImage(blob, language, status), pages: document.numPages };
     } finally {
       await task.destroy();
     }
@@ -76,9 +86,9 @@ export async function readImageText(options: {
     status("Preparando las capas de Photoshop…");
     const blob = await fetch(url).then((response) => response.blob());
     const png = await processFile(new File([blob], name, { type: "image/vnd.adobe.photoshop" }), "psd");
-    return { text: await recognizeImage(png, language, status), pages: 1 };
+    return { ...await recognizeImage(png, language, status), pages: 1 };
   }
-  return { text: await recognizeImage(url, language, status), pages: 1 };
+  return { ...await recognizeImage(url, language, status), pages: 1 };
 }
 
 function documentCanvas(width: number, height: number): HTMLCanvasElement {

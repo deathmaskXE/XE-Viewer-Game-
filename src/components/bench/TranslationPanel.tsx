@@ -1,19 +1,23 @@
 import { useEffect, useState } from "react";
 import { Copy, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { LANGUAGES, readImageText, translateText, type LanguageCode } from "@/lib/bench/translation";
+import { LANGUAGES, readImageText, translateText, type LanguageCode, type TextRegion } from "@/lib/bench/translation";
 
-export function TranslationPanel({ url, name, mime, onClose }: {
+export function TranslationPanel({ url, name, mime, onClose, onOverlay = () => {}, page = 1, onPage = () => {} }: {
   url: string;
   name: string;
   mime: string;
   onClose: () => void;
+  onOverlay?: (regions: TextRegion[], width: number, height: number) => void;
+  page?: number;
+  onPage?: (page: number) => void;
 }) {
   const [source, setSource] = useState<LanguageCode>("en");
   const [target, setTarget] = useState<LanguageCode>("es");
-  const [page, setPage] = useState(1);
   const [pages, setPages] = useState<number | null>(null);
   const [original, setOriginal] = useState("");
+  const [regions, setRegions] = useState<TextRegion[]>([]);
+  const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
   const [translated, setTranslated] = useState("");
   const [method, setMethod] = useState<"local" | "external" | null>(null);
   const [status, setStatus] = useState("");
@@ -24,8 +28,8 @@ export function TranslationPanel({ url, name, mime, onClose }: {
   useEffect(() => {
     setOriginal("");
     setTranslated("");
+    onOverlay([], 0, 0);
     setPages(null);
-    setPage(1);
     setError("");
     setStatus("");
   }, [url]);
@@ -35,10 +39,13 @@ export function TranslationPanel({ url, name, mime, onClose }: {
     setError("");
     setOriginal("");
     setTranslated("");
+    onOverlay([], 0, 0);
     try {
       const result = await readImageText({ url, name, mime, language: source, page, status: setStatus });
       setPages(result.pages);
       setOriginal(result.text);
+      setRegions(result.regions);
+      setDimensions({ width: result.width, height: result.height });
       setStatus(result.text ? "Texto leído. Pulsa Traducir." : "No encontré texto legible en esta imagen.");
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "No pude leer el texto.");
@@ -56,6 +63,16 @@ export function TranslationPanel({ url, name, mime, onClose }: {
     try {
       const result = await translateText(original, source, target, setStatus);
       setTranslated(result.text);
+      const mapped: TextRegion[] = [];
+      for (let index = 0; index < regions.length; index++) {
+        const region = regions[index];
+        setStatus(`Colocando etiquetas… ${index + 1}/${regions.length}`);
+        try {
+          const translation = await translateText(region.text, source, target, () => {});
+          mapped.push({ ...region, translated: translation.text });
+        } catch { mapped.push({ ...region, translated: region.text }); }
+        onOverlay([...mapped], dimensions.width, dimensions.height);
+      }
       setMethod(result.method);
       setStatus("Traducción lista.");
     } catch (reason) {
@@ -76,26 +93,26 @@ export function TranslationPanel({ url, name, mime, onClose }: {
       </div>
       <div className="grid grid-cols-2 gap-2">
         <label className="text-xs text-muted">Idioma original
-          <select className={selectClass} value={source} disabled={busy} onChange={(event) => { setSource(event.target.value as LanguageCode); setOriginal(""); setTranslated(""); }}>
+          <select className={selectClass} value={source} disabled={busy} onChange={(event) => { setSource(event.target.value as LanguageCode); setOriginal(""); setTranslated(""); onOverlay([], 0, 0); }}>
             {LANGUAGES.map((item) => <option key={item.code} value={item.code}>{item.name}</option>)}
           </select>
         </label>
         <label className="text-xs text-muted">Traducir a
-          <select className={selectClass} value={target} disabled={busy} onChange={(event) => { setTarget(event.target.value as LanguageCode); setTranslated(""); }}>
+          <select className={selectClass} value={target} disabled={busy} onChange={(event) => { setTarget(event.target.value as LanguageCode); setTranslated(""); onOverlay([], 0, 0); }}>
             {LANGUAGES.map((item) => <option key={item.code} value={item.code}>{item.name}</option>)}
           </select>
         </label>
       </div>
       {pdf ? (
         <label className="mt-3 block text-xs text-muted">Página del PDF {pages ? `(de ${pages})` : ""}
-          <input className={selectClass} type="number" min={1} max={pages ?? undefined} value={page} disabled={busy} onChange={(event) => { setPage(Math.max(1, Number(event.target.value) || 1)); setOriginal(""); setTranslated(""); }} />
+          <input className={selectClass} type="number" min={1} max={pages ?? undefined} value={page} disabled={busy} onChange={(event) => { onPage(Math.max(1, Number(event.target.value) || 1)); setOriginal(""); setTranslated(""); onOverlay([], 0, 0); }} />
         </label>
       ) : null}
       <Button className="mt-4 w-full" variant="primary" disabled={busy} onClick={() => void read()}>{busy ? "Procesando…" : "1. Leer texto"}</Button>
       {original ? (
         <>
-          <p className="mt-4 text-xs text-muted">Texto detectado (puedes corregirlo antes de traducir):</p>
-          <textarea className="mt-1 min-h-32 w-full rounded-control border border-border bg-bg p-2 text-sm text-fg focus-visible:outline-2 focus-visible:outline-accent" value={original} onChange={(event) => { setOriginal(event.target.value); setTranslated(""); }} />
+          <p className="mt-4 text-xs text-muted">Texto detectado (la corrección manual afecta el texto de la lista, no las posiciones):</p>
+          <textarea className="mt-1 min-h-32 w-full rounded-control border border-border bg-bg p-2 text-sm text-fg focus-visible:outline-2 focus-visible:outline-accent" value={original} onChange={(event) => { setOriginal(event.target.value); setTranslated(""); onOverlay([], 0, 0); }} />
           <Button className="mt-2 w-full" variant="quiet" disabled={busy || !original.trim()} onClick={() => void translate()}>{busy ? "Traduciendo…" : "2. Traducir texto"}</Button>
         </>
       ) : null}
@@ -110,6 +127,7 @@ export function TranslationPanel({ url, name, mime, onClose }: {
       ) : null}
       {status ? <p className="mt-3 text-xs text-muted" role="status">{status}</p> : null}
       {error ? <p className="mt-3 text-xs text-danger" role="alert">{error}</p> : null}
+      <Button className="mt-3 w-full" variant="ghost" onClick={() => onOverlay([], 0, 0)}>Ocultar texto superpuesto</Button>
       <p className="mt-5 text-xs leading-relaxed text-subtle">La lectura de imagen se hace en tu navegador. Chrome de escritorio puede traducir localmente; si no está disponible, al pulsar «Traducir texto» se envía solo el texto reconocido a MyMemory. La imagen no se envía.</p>
     </aside>
   );
