@@ -27,6 +27,7 @@ export function DiagramPane({
   const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
   const [page, setPage] = useState(1);
   const [pdfImage, setPdfImage] = useState<string | null>(null);
+  const [imageSize, setImageSize] = useState({ width: 0, height: 0 });
   const drag = useRef<{ x: number; y: number; px: number; py: number } | null>(null);
   const imageArea = useRef<HTMLDivElement>(null);
 
@@ -47,6 +48,7 @@ export function DiagramPane({
     setTranslationOpen(false);
     setRegions([]);
     setPage(1);
+    setImageSize({ width: 0, height: 0 });
   }, [diagram.id]);
 
   useEffect(() => {
@@ -117,12 +119,13 @@ export function DiagramPane({
           }}
           onPointerCancel={() => { drag.current = null; }}
         >
-          <div className="absolute top-1/2 left-1/2 max-h-full max-w-full select-none" style={{ transform: `translate(-50%, -50%) translate(${pan.x}px, ${pan.y}px) scale(${zoom})`, width: "max-content", maxWidth: "100%", containerType: "inline-size" }}>
+          <div className="absolute top-1/2 left-1/2 max-h-full max-w-full select-none" style={{ transform: `translate(-50%, -50%) translate(${pan.x}px, ${pan.y}px) scale(${zoom})`, width: imageSize.width ? `min(100%, ${imageSize.width}px)` : "auto", containerType: imageSize.width ? "inline-size" : undefined }}>
           <img
             src={url}
             alt={diagram.name}
             draggable={false}
-            className="block max-h-[80vh] max-w-full select-none"
+            onLoad={(event) => setImageSize({ width: event.currentTarget.naturalWidth, height: event.currentTarget.naturalHeight })}
+            className="block h-auto max-h-[80vh] max-w-full select-none"
           />
           <TextOverlay regions={regions} {...dimensions} />
           </div>

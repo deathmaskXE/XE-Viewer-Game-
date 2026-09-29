@@ -17,6 +17,7 @@ export function PsdViewer({ url, zoom, onZoom, pan, onPan, regions, dimensions }
   const [layers, setLayers] = useState<Layer[] | null>(null);
   const [shown, setShown] = useState<boolean[]>([]);
   const [preview, setPreview] = useState<string | null>(null);
+  const [previewSize, setPreviewSize] = useState({ width: 0, height: 0 });
   const [error, setError] = useState("");
   const [selected, setSelected] = useState(0);
   const workerRef = useRef<Worker | null>(null);
@@ -41,6 +42,7 @@ export function PsdViewer({ url, zoom, onZoom, pan, onPan, regions, dimensions }
     workerRef.current = worker;
     setLayers(null);
     setPreview(null);
+    setPreviewSize({ width: 0, height: 0 });
     setError("");
     worker.onmessage = (event: MessageEvent<{ kind: "layers" | "preview" | "error"; layers?: Layer[]; blob?: Blob; error?: string }>) => {
       if (cancelled) return;
@@ -91,7 +93,7 @@ export function PsdViewer({ url, zoom, onZoom, pan, onPan, regions, dimensions }
         onPointerUp={() => { drag.current = null; }}
         onPointerCancel={() => { drag.current = null; }}
       >
-        {preview ? <div className="absolute top-1/2 left-1/2 max-h-full max-w-full select-none" style={{ transform: `translate(-50%, -50%) translate(${pan.x}px, ${pan.y}px) scale(${zoom})`, containerType: "inline-size" }}><img src={preview} alt="Vista de las capas" draggable={false} className="block max-h-[80vh] max-w-full" /><TextOverlay regions={regions} {...dimensions} /></div> : <p className="p-4 text-sm text-muted">Preparando vista…</p>}
+        {preview ? <div className="absolute top-1/2 left-1/2 max-h-full max-w-full select-none" style={{ transform: `translate(-50%, -50%) translate(${pan.x}px, ${pan.y}px) scale(${zoom})`, width: previewSize.width ? `min(100%, ${previewSize.width}px)` : "auto", containerType: previewSize.width ? "inline-size" : undefined }}><img src={preview} alt="Vista de las capas" draggable={false} onLoad={(event) => setPreviewSize({ width: event.currentTarget.naturalWidth, height: event.currentTarget.naturalHeight })} className="block max-h-[80vh] max-w-full" /><TextOverlay regions={regions} {...dimensions} /></div> : <p className="p-4 text-sm text-muted">Preparando vista…</p>}
       </div>
       <aside className="flex max-h-56 w-full shrink-0 flex-col border-t border-border bg-bg-elevated lg:max-h-none lg:w-60 lg:border-t-0 lg:border-l">
         <p className="border-b border-border px-3 py-2 text-xs font-medium text-muted">Capas · {layers.length}</p>
