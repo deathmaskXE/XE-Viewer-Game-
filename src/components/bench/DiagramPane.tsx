@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from "react";
-import { LocateFixed, Minus, Plus, X } from "lucide-react";
+import { Languages, LocateFixed, Minus, Plus, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PsdViewer } from "@/components/bench/PsdViewer";
+import { TranslationPanel } from "@/components/bench/TranslationPanel";
 
 import type { DiagramRecord } from "@/lib/bench/model";
 
@@ -19,6 +20,7 @@ export function DiagramPane({
   const pdf = diagram.mime.includes("pdf") || diagram.name.toLowerCase().endsWith(".pdf");
   const [zoom, setZoom] = useState(1);
   const [pan, setPan] = useState({ x: 0, y: 0 });
+  const [translationOpen, setTranslationOpen] = useState(false);
   const drag = useRef<{ x: number; y: number; px: number; py: number } | null>(null);
   const imageArea = useRef<HTMLDivElement>(null);
 
@@ -36,12 +38,14 @@ export function DiagramPane({
   useEffect(() => {
     setZoom(1);
     setPan({ x: 0, y: 0 });
+    setTranslationOpen(false);
   }, [diagram.id]);
 
   return (
-    <section className="flex min-h-0 min-w-0 flex-col border-border bg-bg-elevated lg:border-l">
+    <section className="relative flex min-h-0 min-w-0 flex-col border-border bg-bg-elevated lg:border-l">
       <div className="flex h-12 shrink-0 items-center gap-2 border-b border-border px-3">
         <h2 className="min-w-0 flex-1 truncate text-sm font-medium">{diagram.name}</h2>
+        <Button size="sm" variant={translationOpen ? "primary" : "quiet"} aria-label="Traducir texto de la imagen" onClick={() => setTranslationOpen((value) => !value)}><Languages className="size-4" /><span className="hidden sm:inline">Traducir</span></Button>
         <Button size="icon" variant="ghost" aria-label="Alejar diagrama" onClick={() => setZoom((value) => Math.max(0.25, value / 1.25))}><Minus className="size-4" /></Button>
         <span className="w-12 text-center text-xs tabular-nums">{Math.round(zoom * 100)}%</span>
         <Button size="icon" variant="ghost" aria-label="Acercar diagrama" onClick={() => setZoom((value) => Math.min(8, value * 1.25))}><Plus className="size-4" /></Button>
@@ -89,6 +93,7 @@ export function DiagramPane({
           />
         </div>
       )}
+      {translationOpen ? <TranslationPanel url={url} name={diagram.name} mime={diagram.mime} onClose={() => setTranslationOpen(false)} /> : null}
     </section>
   );
 }

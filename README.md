@@ -23,3 +23,9 @@ Admite BRD, BRD2, BVR, XinZhiZao PCB, GenCAD, ASCII de Altium, CSV, JSON, PNG/JP
 ## Zoom
 
 En la placa usa los botones +/− o la rueda del mouse; **Encuadrar** vuelve a mostrar la placa completa. En el panel de PSD, imágenes y PDF también hay controles +/− y **Encuadrar**. En PSD e imágenes puedes arrastrar la vista después de acercar.
+
+## Traducción de texto en imágenes
+
+Abre una imagen, PSD o PDF y pulsa **Traducir**. Elige el idioma original y el idioma de destino (español por defecto), pulsa **Leer texto** y revisa/corrige lo reconocido. Después pulsa **Traducir texto**. Se incluyen inglés, español, portugués, francés, alemán, italiano, japonés, coreano, chino simplificado y ruso. En los PDF puedes indicar la página; si es escaneada, se aplica OCR. También aparece el botón de traducción junto a cada overlay.
+
+El OCR se ejecuta en el navegador con Tesseract.js y descarga los datos del idioma en el primer uso. Chrome de escritorio puede traducir con su modelo local; en otros navegadores o si el modelo no está disponible, el botón de traducción usa MyMemory. En ese caso se envía solo el texto detectado, nunca el archivo de imagen. El servicio externo requiere conexión y puede tener límites de uso.

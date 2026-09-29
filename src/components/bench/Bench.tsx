@@ -7,6 +7,7 @@ import {
   FolderOpen,
   FolderPlus,
   ImagePlus,
+  Languages,
   LocateFixed,
   Move,
   Plus,
@@ -20,6 +21,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { DiagramPane } from "@/components/bench/DiagramPane";
 import { FolderGallery } from "@/components/bench/FolderGallery";
+import { TranslationPanel } from "@/components/bench/TranslationPanel";
 import { Viewport, type ViewportHandle } from "@/components/bench/Viewport";
 import { prepare } from "@/lib/board/geometry";
 import { UNIT_PRESETS } from "@/lib/board/units";
@@ -93,6 +95,7 @@ export function Bench() {
   const [editing, setEditing] = useState<string | null>(null);
   const [draftName, setDraftName] = useState("");
   const [confirmId, setConfirmId] = useState<string | null>(null);
+  const [translationOverlayId, setTranslationOverlayId] = useState<string | null>(null);
 
   useEffect(() => {
     void boot();
@@ -198,6 +201,7 @@ export function Bench() {
       ? [...prep.nets.keys()].filter((name) => name.toLowerCase().includes(q)).slice(0, 40)
       : [];
   const activeOverlay = project?.overlays.find((overlay) => overlay.id === activeOverlayId) ?? null;
+  const translationOverlay = project?.overlays.find((overlay) => overlay.id === translationOverlayId) ?? null;
   const activeDiagram = project?.diagrams.find((diagram) => diagram.id === activeDiagramId) ?? null;
   const diagramUrl = activeDiagram ? urls[activeDiagram.id] : undefined;
   const selected = selectedPart != null ? board?.parts[selectedPart] : null;
@@ -480,6 +484,15 @@ export function Bench() {
               </Button>
             </div>
           ) : null}
+          {translationOverlay && urls[translationOverlay.id] ? (
+            <TranslationPanel
+              key={translationOverlay.id}
+              url={urls[translationOverlay.id]}
+              name={translationOverlay.name}
+              mime="image/png"
+              onClose={() => setTranslationOverlayId(null)}
+            />
+          ) : null}
           {dragging ? (
             <div className="absolute inset-0 z-30 flex items-center justify-center bg-bg/80">
               <p className="text-lg font-medium">Soltar archivos</p>
@@ -597,6 +610,9 @@ export function Bench() {
                         onClick={() => updateOverlay(overlay.id, { visible: !overlay.visible })}
                       >
                         {overlay.visible ? <Eye className="size-4" /> : <EyeOff className="size-4" />}
+                      </Button>
+                      <Button size="icon" variant="ghost" aria-label={`Traducir ${overlay.name}`} title="Traducir texto" onClick={() => setTranslationOverlayId(overlay.id)}>
+                        <Languages className="size-4" />
                       </Button>
                       <Button size="icon" variant="ghost" aria-label="Quitar overlay" onClick={() => void removeOverlay(overlay.id)}>
                         <Trash2 className="size-4" />
