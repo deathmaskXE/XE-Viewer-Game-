@@ -18,7 +18,7 @@ Admite BRD, BRD2, BVR, XinZhiZao PCB, GenCAD, ASCII de Altium, CSV, JSON, PNG/JP
 
 ## Carpetas
 
-**Abrir carpeta** permite elegir una carpeta normal, sin comprimirla. El visor muestra PNG, JPG, WEBP, GIF, BMP y PDF de esa carpeta y sus subcarpetas en una galería. Toca una miniatura para abrirla; al cerrar la vista regresas a la galería. Se guarda una copia local en este navegador. Al abrir un archivo suelto, el visor crea un proyecto nuevo y cierra la vista anterior para evitar que las imágenes se superpongan. Si seleccionas una placa y una foto juntas, la foto sí se usa como overlay de esa placa.
+**Abrir carpeta** permite elegir una carpeta normal, sin comprimirla, en Chrome o Edge. También puedes arrastrarla desde el explorador de archivos a la página. El visor recorre las subcarpetas y muestra PNG, JPG, WEBP, GIF, BMP y PDF en una galería. Toca una miniatura para abrirla; al cerrar la vista regresas a la galería. Se guarda una copia local en este navegador. Al abrir un archivo suelto, el visor crea un proyecto nuevo y cierra la vista anterior para evitar que las imágenes se superpongan. Si seleccionas una placa y una foto juntas, la foto sí se usa como overlay de esa placa.
 
 ## Zoom
 

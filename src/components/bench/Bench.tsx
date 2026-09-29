@@ -26,6 +26,7 @@ import { UNIT_PRESETS } from "@/lib/board/units";
 import type { Side } from "@/lib/board/types";
 import { cn } from "@/lib/cn";
 import { useActiveProject, useBench } from "@/lib/bench/store";
+import { openFolderPicker, readDroppedFiles } from "@/lib/bench/folder";
 
 function sideLabel(side: Side): string {
   if (side === "top") return "Sup";
@@ -88,6 +89,7 @@ export function Bench() {
   const viewRef = useRef<ViewportHandle>(null);
   const dragDepth = useRef(0);
   const [dragging, setDragging] = useState(false);
+  const [readingFolder, setReadingFolder] = useState(false);
   const [editing, setEditing] = useState<string | null>(null);
   const [draftName, setDraftName] = useState("");
   const [confirmId, setConfirmId] = useState<string | null>(null);
@@ -96,10 +98,23 @@ export function Bench() {
     void boot();
   }, [boot]);
 
-  useEffect(() => {
-    folderRef.current?.setAttribute("webkitdirectory", "");
-    folderRef.current?.setAttribute("directory", "");
-  }, []);
+  const chooseFolder = () => {
+    if (!("showDirectoryPicker" in window)) {
+      folderRef.current?.click();
+      return;
+    }
+    setReadingFolder(true);
+    void openFolderPicker()
+      .then(async (files) => {
+        if (files?.length) await importFolder(files);
+        else if (files) useBench.setState({ notice: "La carpeta no contiene archivos." });
+      })
+      .catch((error: unknown) => {
+        if (error instanceof DOMException && error.name === "AbortError") return;
+        useBench.setState({ notice: "No pude abrir la carpeta. Prueba con el selector de archivos de Chrome o Edge." });
+      })
+      .finally(() => setReadingFolder(false));
+  };
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
@@ -216,8 +231,15 @@ export function Bench() {
         event.preventDefault();
         dragDepth.current = 0;
         setDragging(false);
-        const files = [...event.dataTransfer.files];
-        if (files.length) void importFiles(files);
+        setReadingFolder(true);
+        void readDroppedFiles(event.dataTransfer)
+          .then(async ({ folderFiles, looseFiles }) => {
+            if (folderFiles.length) await importFolder(folderFiles);
+            else if (looseFiles.length) await importFiles(looseFiles);
+            else useBench.setState({ notice: "No pude leer la carpeta arrastrada. Usa Abrir carpeta." });
+          })
+          .catch((error: unknown) => useBench.setState({ notice: error instanceof Error ? error.message : "No pude leer la carpeta." }))
+          .finally(() => setReadingFolder(false));
       }}
     >
       <input
@@ -234,7 +256,11 @@ export function Bench() {
         }}
       />
       <input
-        ref={folderRef}
+        ref={(element) => {
+          folderRef.current = element;
+          element?.setAttribute("webkitdirectory", "");
+          element?.setAttribute("directory", "");
+        }}
         type="file"
         multiple
         className="sr-only"
@@ -253,13 +279,13 @@ export function Bench() {
             <p className="text-xs text-muted">Boardview · overlays · diagramas</p>
           </div>
         </div>
-        <Button variant="primary" disabled={importing} onClick={() => fileRef.current?.click()}>
+        <Button variant="primary" disabled={importing || readingFolder} onClick={() => fileRef.current?.click()}>
           <FolderOpen className="size-4" />
           {importing ? "Procesando…" : "Abrir"}
         </Button>
-        <Button variant="quiet" disabled={importing} onClick={() => folderRef.current?.click()}>
+        <Button variant="quiet" disabled={importing || readingFolder} onClick={chooseFolder}>
           <FolderPlus className="size-4" />
-          Abrir carpeta
+          {readingFolder ? "Leyendo carpeta…" : "Abrir carpeta"}
         </Button>
         {boardTools ? <>
         <div className="flex rounded-panel border border-border p-1">
