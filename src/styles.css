@@ -1,0 +1,68 @@
+@import "@fontsource/ibm-plex-sans/latin-400.css";
+@import "@fontsource/ibm-plex-sans/latin-500.css";
+@import "@fontsource/ibm-plex-sans/latin-600.css";
+@import "@fontsource/ibm-plex-mono/latin-400.css";
+@import "@fontsource/ibm-plex-mono/latin-500.css";
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "IBM Plex Sans", "Liberation Sans", sans-serif;
+  --font-mono: "IBM Plex Mono", "Liberation Mono", ui-monospace, monospace;
+
+  --color-bg: #0c0e0d;
+  --color-bg-elevated: #141716;
+  --color-bg-subtle: #1c201e;
+  --color-fg: #e7ebe4;
+  --color-muted: #a3aaa0;
+  --color-subtle: #737a72;
+  --color-primary: #d7ddd4;
+  --color-primary-fg: #121412;
+  --color-accent: #8fa396;
+  --color-border: #2a2e2b;
+  --color-danger: #c46b5a;
+
+  --radius-control: 8px;
+  --radius-panel: 12px;
+  --radius-sheet: 16px;
+}
+
+@layer base {
+  html {
+    height: 100%;
+    color-scheme: dark;
+  }
+  body {
+    margin: 0;
+    min-height: 100%;
+    background: var(--color-bg);
+    color: var(--color-fg);
+    font-family: var(--font-sans);
+  }
+  button:not(:disabled),
+  [role="button"]:not(:disabled),
+  summary {
+    cursor: pointer;
+  }
+  input[type="range"] {
+    accent-color: var(--color-accent);
+  }
+  ::selection {
+    background: color-mix(in oklab, var(--color-accent) 35%, transparent);
+  }
+}
+
+.mesa-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-border) transparent;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
