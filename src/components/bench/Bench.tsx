@@ -13,6 +13,8 @@ import {
   Search,
   Trash2,
   X,
+  ZoomIn,
+  ZoomOut,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DiagramPane } from "@/components/bench/DiagramPane";
@@ -272,6 +274,12 @@ export function Bench() {
           </Button>
           <Button size="icon" variant="quiet" aria-label="Encuadrar" title="Encuadrar (F)" onClick={() => viewRef.current?.fit()}>
             <LocateFixed className="size-4" />
+          </Button>
+          <Button size="icon" variant="quiet" aria-label="Alejar placa" title="Alejar" onClick={() => viewRef.current?.zoomBy(1 / 1.25)}>
+            <ZoomOut className="size-4" />
+          </Button>
+          <Button size="icon" variant="quiet" aria-label="Acercar placa" title="Acercar" onClick={() => viewRef.current?.zoomBy(1.25)}>
+            <ZoomIn className="size-4" />
           </Button>
         </div>
       </header>

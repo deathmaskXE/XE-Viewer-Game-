@@ -1,9 +1,15 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type Dispatch, type SetStateAction } from "react";
 import { Eye, EyeOff } from "lucide-react";
 
 type Layer = { name: string; visible: boolean };
 
-export function PsdViewer({ url }: { url: string }) {
+export function PsdViewer({ url, zoom, onZoom, pan, onPan }: {
+  url: string;
+  zoom: number;
+  onZoom: Dispatch<SetStateAction<number>>;
+  pan: { x: number; y: number };
+  onPan: Dispatch<SetStateAction<{ x: number; y: number }>>;
+}) {
   const [layers, setLayers] = useState<Layer[] | null>(null);
   const [shown, setShown] = useState<boolean[]>([]);
   const [preview, setPreview] = useState<string | null>(null);
@@ -11,6 +17,19 @@ export function PsdViewer({ url }: { url: string }) {
   const [selected, setSelected] = useState(0);
   const workerRef = useRef<Worker | null>(null);
   const previewRef = useRef<string | null>(null);
+  const imageArea = useRef<HTMLDivElement>(null);
+  const drag = useRef<{ x: number; y: number; px: number; py: number } | null>(null);
+
+  useEffect(() => {
+    const area = imageArea.current;
+    if (!area) return;
+    const onWheel = (event: WheelEvent) => {
+      event.preventDefault();
+      onZoom((value) => Math.min(8, Math.max(0.25, value * Math.exp(-event.deltaY * 0.001))));
+    };
+    area.addEventListener("wheel", onWheel, { passive: false });
+    return () => area.removeEventListener("wheel", onWheel);
+  }, [onZoom, layers]);
 
   useEffect(() => {
     let cancelled = false;
@@ -54,8 +73,21 @@ export function PsdViewer({ url }: { url: string }) {
 
   return (
     <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
-      <div className="mesa-scroll flex min-h-0 flex-1 items-center justify-center overflow-auto bg-[#1a1c1b] p-3">
-        {preview ? <img src={preview} alt="Vista de las capas" className="max-w-full" /> : <p className="text-sm text-muted">Preparando vista…</p>}
+      <div
+        ref={imageArea}
+        className="relative min-h-0 flex-1 touch-none overflow-hidden bg-[#1a1c1b]"
+        onPointerDown={(event) => {
+          drag.current = { x: event.clientX, y: event.clientY, px: pan.x, py: pan.y };
+          event.currentTarget.setPointerCapture(event.pointerId);
+        }}
+        onPointerMove={(event) => {
+          if (!drag.current) return;
+          onPan({ x: drag.current.px + event.clientX - drag.current.x, y: drag.current.py + event.clientY - drag.current.y });
+        }}
+        onPointerUp={() => { drag.current = null; }}
+        onPointerCancel={() => { drag.current = null; }}
+      >
+        {preview ? <img src={preview} alt="Vista de las capas" draggable={false} className="absolute top-1/2 left-1/2 max-h-full max-w-full select-none" style={{ transform: `translate(-50%, -50%) translate(${pan.x}px, ${pan.y}px) scale(${zoom})` }} /> : <p className="p-4 text-sm text-muted">Preparando vista…</p>}
       </div>
       <aside className="flex max-h-56 w-full shrink-0 flex-col border-t border-border bg-bg-elevated lg:max-h-none lg:w-60 lg:border-t-0 lg:border-l">
         <p className="border-b border-border px-3 py-2 text-xs font-medium text-muted">Capas · {layers.length}</p>
