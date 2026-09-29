@@ -21,19 +21,19 @@ type Props = {
 };
 
 const PAL = {
-  bg: "#0c0e0d",
-  fill: "#141816",
-  outline: "#8d978f",
-  partTop: "#c5cfc6",
-  partBot: "#7f8d95",
-  pin: "#d5ddd4",
-  pinBot: "#93a4ae",
-  nail: "#8fa396",
+  bg: "#08131c",
+  fill: "#122633",
+  outline: "#718f9e",
+  partTop: "#b8d2dd",
+  partBot: "#72b9cd",
+  pin: "#d9e8ed",
+  pinBot: "#80cbdc",
+  nail: "#4bdae9",
   hot: "#ff3333",
-  net: "#8fa396",
+  net: "#51d8e9",
   trace: "#e23b3b",
-  text: "#d7ddd4",
-  dim: "rgba(213,221,212,0.28)",
+  text: "#dcebf0",
+  dim: "rgba(176,216,229,0.28)",
 };
 
 type Cam = { x: number; y: number; zoom: number };
@@ -290,7 +290,7 @@ export function Viewport({ board, projectId, overlays, urls, unitsPerMm, ref }: 
         ctx.moveTo(a.x, a.y);
         ctx.lineTo(b.x, b.y);
       }
-      ctx.strokeStyle = hotNet ? "rgba(141,151,143,0.35)" : PAL.outline;
+      ctx.strokeStyle = hotNet ? "rgba(90,185,208,0.35)" : PAL.outline;
       ctx.stroke();
       if (hotNet) {
         ctx.beginPath();
@@ -344,7 +344,7 @@ export function Viewport({ board, projectId, overlays, urls, unitsPerMm, ref }: 
         const my = (a.y + b.y) / 2 - 10;
         ctx.font = `500 12px "IBM Plex Sans", sans-serif`;
         const width = ctx.measureText(label).width + 12;
-        ctx.fillStyle = "#141716";
+        ctx.fillStyle = "#101f2b";
         ctx.fillRect(mx - width / 2, my - 14, width, 20);
         ctx.fillStyle = PAL.text;
         ctx.textAlign = "center";

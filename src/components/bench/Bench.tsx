@@ -191,7 +191,7 @@ export function Bench() {
 
   return (
     <div
-      className="flex h-dvh flex-col overflow-hidden bg-bg text-fg"
+      className="xe-shell flex h-dvh flex-col overflow-hidden bg-bg text-fg"
       onDragEnter={(event) => {
         event.preventDefault();
         dragDepth.current += 1;
@@ -223,10 +223,13 @@ export function Bench() {
           event.target.value = "";
         }}
       />
-      <header className="flex flex-wrap items-center gap-2 border-b border-border px-3 py-2">
-        <div className="mr-1 min-w-0">
-          <h1 className="text-base font-medium tracking-tight">XE Game Viewer</h1>
-          <p className="text-xs text-muted">Boardview, overlays y diagramas</p>
+      <header className="xe-header flex flex-wrap items-center gap-2 border-b border-border px-3 py-2">
+        <div className="mr-2 flex min-w-0 items-center gap-2.5">
+          <span className="xe-mark" aria-hidden="true">XE</span>
+          <div className="min-w-0">
+            <h1 className="text-base font-semibold tracking-tight text-fg">Game Viewer</h1>
+            <p className="text-xs text-muted">Boardview · overlays · diagramas</p>
+          </div>
         </div>
         <Button variant="primary" disabled={importing} onClick={() => fileRef.current?.click()}>
           <FolderOpen className="size-4" />
@@ -285,7 +288,7 @@ export function Bench() {
       </header>
 
       <div className="relative flex min-h-0 flex-1">
-        <aside className={cn(sheetClass(filesOpen), "lg:w-60 lg:border-r lg:border-border")}>
+        <aside className={cn(sheetClass(filesOpen), "xe-sidebar lg:w-60 lg:border-r lg:border-border")}>
           <div className="flex items-center gap-2 border-b border-border px-3 py-2">
             <h2 className="flex-1 text-sm font-medium">Placas</h2>
             <Button size="icon" variant="quiet" aria-label="Nueva placa" onClick={() => void newEmpty()}>
@@ -421,7 +424,7 @@ export function Bench() {
           ) : null}
         </div>
 
-        <aside className={cn(sheetClass(partsOpen), "lg:w-80 lg:border-l lg:border-border")}>
+        <aside className={cn(sheetClass(partsOpen), "xe-inspector lg:w-80 lg:border-l lg:border-border")}>
           <div className="flex items-center gap-2 border-b border-border px-3 py-2">
             <h2 className="flex-1 text-sm font-medium">
               {board ? `${board.parts.length} piezas · ${board.format}` : "Piezas"}

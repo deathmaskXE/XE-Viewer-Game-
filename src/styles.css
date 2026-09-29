@@ -9,19 +9,19 @@
   --font-sans: "IBM Plex Sans", "Liberation Sans", sans-serif;
   --font-mono: "IBM Plex Mono", "Liberation Mono", ui-monospace, monospace;
 
-  --color-bg: #0c0e0d;
-  --color-bg-elevated: #141716;
-  --color-bg-subtle: #1c201e;
-  --color-fg: #e7ebe4;
-  --color-muted: #a3aaa0;
-  --color-subtle: #737a72;
-  --color-primary: #d7ddd4;
-  --color-primary-fg: #121412;
-  --color-accent: #8fa396;
-  --color-border: #2a2e2b;
-  --color-danger: #c46b5a;
+  --color-bg: #08131c;
+  --color-bg-elevated: #101f2b;
+  --color-bg-subtle: #192e3b;
+  --color-fg: #e4ecf1;
+  --color-muted: #adc0ca;
+  --color-subtle: #879da9;
+  --color-primary: #45d9ef;
+  --color-primary-fg: #06202b;
+  --color-accent: #5de5f5;
+  --color-border: #2b4654;
+  --color-danger: #f28787;
 
-  --radius-control: 8px;
+  --radius-control: 10px;
   --radius-panel: 12px;
   --radius-sheet: 16px;
 }
@@ -49,6 +49,42 @@
   ::selection {
     background: color-mix(in oklab, var(--color-accent) 35%, transparent);
   }
+}
+
+.xe-shell {
+  background: radial-gradient(ellipse at 58% -24%, #12394a 0%, transparent 42%), var(--color-bg);
+}
+
+.xe-header {
+  background: linear-gradient(110deg, #142b39 0%, #101f2b 48%, #0c1b26 100%);
+  box-shadow: inset 0 -1px 0 rgba(91, 220, 241, .12);
+}
+
+.xe-mark {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  flex: none;
+  border: 1px solid rgba(97, 228, 246, .5);
+  border-radius: 10px;
+  background: linear-gradient(145deg, #1b6274, #0b2b3d 65%, #172c3b);
+  box-shadow: inset 0 1px 0 rgba(225, 250, 255, .24), 0 0 18px rgba(32, 191, 219, .12);
+  color: #dcfaff;
+  font-weight: 600;
+  letter-spacing: -.06em;
+}
+
+.xe-sidebar {
+  background: linear-gradient(180deg, #132633, #101f2b 45%);
+}
+
+.xe-inspector {
+  background: linear-gradient(180deg, #132935, #101f2b 45%);
+}
+
+.xe-header button[aria-pressed="true"] {
+  box-shadow: 0 0 0 1px rgba(111, 237, 249, .42), 0 0 14px rgba(31, 196, 221, .12);
 }
 
 .mesa-scroll {

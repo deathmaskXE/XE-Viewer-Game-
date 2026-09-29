@@ -75,7 +75,7 @@ export function PsdViewer({ url, zoom, onZoom, pan, onPan }: {
     <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
       <div
         ref={imageArea}
-        className="relative min-h-0 flex-1 touch-none overflow-hidden bg-[#1a1c1b]"
+        className="relative min-h-0 flex-1 touch-none overflow-hidden bg-[#0b1924]"
         onPointerDown={(event) => {
           drag.current = { x: event.clientX, y: event.clientY, px: pan.x, py: pan.y };
           event.currentTarget.setPointerCapture(event.pointerId);
