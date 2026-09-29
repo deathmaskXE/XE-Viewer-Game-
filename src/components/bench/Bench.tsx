@@ -5,6 +5,7 @@ import {
   EyeOff,
   FlipHorizontal2,
   FolderOpen,
+  FolderPlus,
   ImagePlus,
   LocateFixed,
   Move,
@@ -18,6 +19,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DiagramPane } from "@/components/bench/DiagramPane";
+import { FolderGallery } from "@/components/bench/FolderGallery";
 import { Viewport, type ViewportHandle } from "@/components/bench/Viewport";
 import { prepare } from "@/lib/board/geometry";
 import { UNIT_PRESETS } from "@/lib/board/units";
@@ -65,6 +67,7 @@ export function Bench() {
   const openFiles = useBench((state) => state.openFiles);
   const openParts = useBench((state) => state.openParts);
   const importFiles = useBench((state) => state.importFiles);
+  const importFolder = useBench((state) => state.importFolder);
   const activate = useBench((state) => state.activate);
   const rename = useBench((state) => state.rename);
   const remove = useBench((state) => state.remove);
@@ -81,6 +84,7 @@ export function Bench() {
   const fitOverlay = useBench((state) => state.fitOverlay);
 
   const fileRef = useRef<HTMLInputElement>(null);
+  const folderRef = useRef<HTMLInputElement>(null);
   const viewRef = useRef<ViewportHandle>(null);
   const dragDepth = useRef(0);
   const [dragging, setDragging] = useState(false);
@@ -91,6 +95,11 @@ export function Bench() {
   useEffect(() => {
     void boot();
   }, [boot]);
+
+  useEffect(() => {
+    folderRef.current?.setAttribute("webkitdirectory", "");
+    folderRef.current?.setAttribute("directory", "");
+  }, []);
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
@@ -158,6 +167,7 @@ export function Bench() {
   ]);
 
   const board = project?.board ?? null;
+  const boardTools = Boolean(board || project?.overlays.length);
   const prep = board ? prepare(board) : null;
   const q = query.trim().toLowerCase();
   const partRows =
@@ -223,6 +233,18 @@ export function Bench() {
           event.target.value = "";
         }}
       />
+      <input
+        ref={folderRef}
+        type="file"
+        multiple
+        className="sr-only"
+        aria-label="Abrir carpeta"
+        onChange={(event) => {
+          const list = event.target.files;
+          if (list?.length) void importFolder([...list]);
+          event.target.value = "";
+        }}
+      />
       <header className="xe-header flex flex-wrap items-center gap-2 border-b border-border px-3 py-2">
         <div className="mr-2 flex min-w-0 items-center gap-2.5">
           <span className="xe-mark" aria-hidden="true">XE</span>
@@ -235,6 +257,11 @@ export function Bench() {
           <FolderOpen className="size-4" />
           {importing ? "Procesando…" : "Abrir"}
         </Button>
+        <Button variant="quiet" disabled={importing} onClick={() => folderRef.current?.click()}>
+          <FolderPlus className="size-4" />
+          Abrir carpeta
+        </Button>
+        {boardTools ? <>
         <div className="flex rounded-panel border border-border p-1">
           {(
             [
@@ -285,6 +312,7 @@ export function Bench() {
             <ZoomIn className="size-4" />
           </Button>
         </div>
+        </> : null}
       </header>
 
       <div className="relative flex min-h-0 flex-1">
@@ -335,7 +363,7 @@ export function Bench() {
                     }}
                   >
                     <span className="min-w-0 flex-1 truncate text-sm">{item.name}</span>
-                    {item.sample ? <span className="text-xs text-muted">Ejemplo</span> : null}
+                    {item.folder ? <span className="text-xs text-accent">Carpeta</span> : null}
                   </button>
                 )}
                 {item.id === project?.id ? (
@@ -364,7 +392,8 @@ export function Bench() {
               <summary className="text-sm font-medium">Formatos y atajos</summary>
               <div className="mt-2 space-y-2 text-xs leading-relaxed text-muted">
                 <p>Placa: .brd (con o sin cifra de OpenBoardView), BRD2, .bvr, .pcb de XinZhiZao, GenCAD, ASCII de Altium, CSV y JSON.</p>
-                <p>Overlay: PNG, JPG, WEBP, GIF, BMP y Photoshop (.psd, .psb). Diagrama: PDF y SVG. Un .fz cifrado de FlexBV no abre; exporta .brd.</p>
+                <p>Una imagen abierta sola se muestra como documento. Si eliges una placa y una imagen juntas, la imagen se alinea como overlay. También abre PDF, SVG y Photoshop (.psd, .psb).</p>
+                <p>Abrir carpeta muestra sus imágenes y PDF como una galería, incluso dentro de subcarpetas. No requiere ZIP.</p>
                 <p>Toca una pista o un pin: toda esa red se marca en rojo. En un Photoshop, abre el panel de la derecha para ver y ocultar capas.</p>
                 <p>Rueda zoom. Arrastrar mueve. F encuadra. 1 2 3 cambian de cara. M espejo. N navegar, V mover overlay, C medir. / buscar.</p>
               </div>
@@ -375,7 +404,15 @@ export function Bench() {
         <div className="relative flex min-w-0 flex-1">
           <div className={cn("grid min-h-0 min-w-0 flex-1", diagramOpen && diagramUrl && activeDiagram && "lg:grid-cols-2")}>
             <div className={cn("relative flex min-h-0 min-w-0", diagramOpen && diagramUrl && "max-lg:hidden")}>
-              {ready ? (
+              {ready && project?.folder ? (
+                <FolderGallery
+                  name={project.name}
+                  items={project.diagrams}
+                  urls={urls}
+                  activeId={diagramOpen ? activeDiagramId : null}
+                  onOpen={setActiveDiagram}
+                />
+              ) : ready ? (
                 <Viewport
                   ref={viewRef}
                   board={board}
@@ -387,10 +424,10 @@ export function Bench() {
               ) : (
                 <div className="flex flex-1 items-center justify-center text-sm text-muted">Abriendo la mesa…</div>
               )}
-              {!board && ready && (project?.overlays.length ?? 0) === 0 ? (
+              {!board && ready && !project?.folder && (project?.overlays.length ?? 0) === 0 && (project?.diagrams.length ?? 0) === 0 ? (
                 <div className="pointer-events-none absolute inset-0 flex items-center justify-center px-6 text-center">
                   <p className="max-w-sm text-sm text-muted">
-                    Suelta un boardview, una foto de la placa o un PDF. La foto se alinea encima y puedes bajarle la opacidad.
+                    Abre un archivo o una carpeta con PNG, JPG y PDF.
                   </p>
                 </div>
               ) : null}

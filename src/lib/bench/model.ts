@@ -26,6 +26,7 @@ export type ProjectRecord = {
   created: number;
   updated: number;
   sample: boolean;
+  folder?: boolean;
   board: Board | null;
   sourceName: string | null;
   unitsPerMm: number;

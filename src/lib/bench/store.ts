@@ -5,7 +5,7 @@ import { looksLikePhotoshop } from "@/lib/board/psd";
 import { processFile } from "@/lib/board/process-file";
 import type { Board, BoardPoint } from "@/lib/board/types";
 import { MIL_PER_MM } from "@/lib/board/types";
-import { deleteProject, getBlob, listProjects, putBlob, saveProject } from "@/lib/bench/db";
+import { deleteBlobs, deleteProject, getBlob, listProjects, putBlob, saveProject } from "@/lib/bench/db";
 import type { DiagramRecord, OverlayRecord, ProjectRecord, Tool, ViewSide } from "@/lib/bench/model";
 
 type ZoomRequest = { token: number; target: "board" | number };
@@ -48,6 +48,7 @@ type BenchState = {
   openFiles: (open?: boolean) => void;
   openParts: (open?: boolean) => void;
   importFiles: (files: File[]) => Promise<void>;
+  importFolder: (files: File[]) => Promise<void>;
   activate: (id: string) => Promise<void>;
   rename: (id: string, name: string) => Promise<void>;
   remove: (id: string) => Promise<void>;
@@ -69,6 +70,7 @@ type BenchState = {
 let booting: Promise<void> | null = null;
 let saveTimer = 0;
 let noticeGen = 0;
+let activationToken = 0;
 
 function revokeUrls(urls: Record<string, string>) {
   for (const url of Object.values(urls)) URL.revokeObjectURL(url);
@@ -94,12 +96,12 @@ function scheduleSave(project: ProjectRecord) {
 async function urlsFor(project: ProjectRecord): Promise<Record<string, string>> {
   const urls: Record<string, string> = {};
   const ids = [...project.overlays.map((item) => item.id), ...project.diagrams.map((item) => item.id)];
-  await Promise.all(
-    ids.map(async (id) => {
+  for (let offset = 0; offset < ids.length; offset += 20) {
+    await Promise.all(ids.slice(offset, offset + 20).map(async (id) => {
       const blob = await getBlob(id);
       if (blob) urls[id] = URL.createObjectURL(blob);
-    }),
-  );
+    }));
+  }
   return urls;
 }
 
@@ -266,12 +268,12 @@ export const useBench = create<BenchState>((set, get) => ({
   activate: async (id) => {
     const project = get().projects.find((item) => item.id === id);
     if (!project) return;
+    const token = ++activationToken;
     revokeUrls(get().urls);
-    const urls = await urlsFor(project);
     window.localStorage.setItem("mesa-active", id);
     set({
       activeId: id,
-      urls,
+      urls: {},
       selectedPart: null,
       selectedNail: null,
       selectedNet: null,
@@ -280,9 +282,15 @@ export const useBench = create<BenchState>((set, get) => ({
       query: "",
       activeOverlayId: project.overlays[0]?.id ?? null,
       activeDiagramId: project.diagrams[0]?.id ?? null,
-      diagramOpen: project.diagrams.length === 0 ? false : get().diagramOpen,
+      diagramOpen: false,
       filesOpen: false,
     });
+    const urls = await urlsFor(project);
+    if (token !== activationToken) {
+      revokeUrls(urls);
+      return;
+    }
+    set({ urls });
   },
 
   rename: async (id, name) => {
@@ -456,6 +464,53 @@ export const useBench = create<BenchState>((set, get) => ({
       set({ importing: false });
     }
   },
+  importFolder: async (files) => {
+    if (get().importing) return;
+    const supported = files.filter((file) => /\.(png|jpe?g|webp|gif|bmp|pdf)$/i.test(file.name));
+    if (!supported.length) {
+      notify(set, "La carpeta no contiene PNG, JPG o PDF compatibles.", true);
+      return;
+    }
+    set({ importing: true, notice: `Guardando ${supported.length} archivos de la carpeta…` });
+    const ids: string[] = [];
+    let saved = false;
+    try {
+      const now = Date.now();
+      const root = (supported[0].webkitRelativePath || supported[0].name).split("/")[0] || "Carpeta";
+      const diagrams: DiagramRecord[] = [];
+      for (const file of supported) {
+        const id = crypto.randomUUID();
+        const relative = file.webkitRelativePath?.split("/").slice(1).join("/") || file.name;
+        const mime = /\.pdf$/i.test(file.name) ? "application/pdf" : file.type || "image/jpeg";
+        await putBlob(id, file.slice(0, file.size, mime));
+        ids.push(id);
+        diagrams.push({ id, name: relative, mime });
+      }
+      const project: ProjectRecord = {
+        id: crypto.randomUUID(),
+        name: root,
+        created: now,
+        updated: now,
+        sample: false,
+        folder: true,
+        board: null,
+        sourceName: null,
+        unitsPerMm: MIL_PER_MM,
+        overlays: [],
+        diagrams,
+      };
+      await saveProject(project);
+      saved = true;
+      set({ projects: [project, ...get().projects] });
+      await get().activate(project.id);
+      notify(set, `Carpeta ${root}: ${diagrams.length} archivos disponibles.`);
+    } catch (error) {
+      if (!saved) await deleteBlobs(ids).catch(() => {});
+      notify(set, error instanceof Error ? error.message : "No pude guardar la carpeta.", true);
+    } finally {
+      set({ importing: false });
+    }
+  },
 }));
 
 async function importFilesImpl(
@@ -588,26 +643,36 @@ async function importFilesImpl(
           targetId = next.id;
         }
       }
-    } else if (active) {
-      const attached = await attach(active, extras);
-      const next = { ...active, updated: Date.now(), overlays: attached.overlays, diagrams: attached.diagrams };
+    } else {
+      // A separately opened image or PDF is a new document, not an overlay
+      // on the previous board. A PSD uses its original layer file as the view.
+      const standalone = extras
+        .filter((item) => !(item.role === "overlay" && /\.ps[db]\.png$/i.test(item.file.name)))
+        .map((item) => ({ ...item, role: "diagram" as const }));
+      const now = Date.now();
+      const shell: ProjectRecord = {
+        id: crypto.randomUUID(),
+        name: stem(files[0]?.name || "Archivo"),
+        created: now,
+        updated: now,
+        sample: false,
+        board: null,
+        sourceName: null,
+        unitsPerMm: MIL_PER_MM,
+        overlays: [],
+        diagrams: [],
+      };
+      const attached = await attach(shell, standalone);
+      const next = { ...shell, diagrams: attached.diagrams };
       await saveProject(next);
-      set({
-        projects: get().projects.map((project) => (project.id === next.id ? next : project)),
-        urls: {
-          ...get().urls,
-          ...Object.fromEntries(attached.made.map((item) => [item.id, URL.createObjectURL(item.blob)])),
-        },
-        activeOverlayId: attached.made.find((item) => next.overlays.some((overlay) => overlay.id === item.id))?.id ?? get().activeOverlayId,
-        activeDiagramId: next.diagrams.at(-1)?.id ?? get().activeDiagramId,
-      });
-      targetId = active.id;
+      set({ projects: [next, ...get().projects] });
+      targetId = next.id;
     }
 
-    if (extras.some((item) => item.role === "diagram" && item.file.type.includes("photoshop"))) {
+    if (targetId) await get().activate(targetId);
+    if (boards.length === 0 || extras.some((item) => item.role === "diagram" && item.file.type.includes("photoshop"))) {
       set({ diagramOpen: true });
     }
-    if (targetId) await get().activate(targetId);
     const summary = [
       boards.length ? `${boards.length} boardview` : "",
       extras.length ? `${extras.length} archivo${extras.length === 1 ? "" : "s"}` : "",

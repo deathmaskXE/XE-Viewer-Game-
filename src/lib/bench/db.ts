@@ -56,6 +56,15 @@ export async function deleteProject(id: string, blobIds: string[]): Promise<void
   db.close();
 }
 
+export async function deleteBlobs(ids: string[]): Promise<void> {
+  if (!ids.length) return;
+  const db = await openDb();
+  const tx = db.transaction("blobs", "readwrite");
+  for (const id of ids) tx.objectStore("blobs").delete(id);
+  await done(tx);
+  db.close();
+}
+
 export async function putBlob(id: string, blob: Blob): Promise<void> {
   const db = await openDb();
   const tx = db.transaction("blobs", "readwrite");

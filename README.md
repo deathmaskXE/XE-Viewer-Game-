@@ -16,6 +16,10 @@ Abrir el repositorio de código en GitHub por sí solo no ejecuta la aplicación
 
 Admite BRD, BRD2, BVR, XinZhiZao PCB, GenCAD, ASCII de Altium, CSV, JSON, PNG/JPG/WEBP, PDF/SVG y PSD/PSB según el soporte del parser. Algunos `.pcb` de otros fabricantes y formatos cifrados pueden no ser compatibles.
 
+## Carpetas
+
+**Abrir carpeta** permite elegir una carpeta normal, sin comprimirla. El visor muestra PNG, JPG, WEBP, GIF, BMP y PDF de esa carpeta y sus subcarpetas en una galería. Toca una miniatura para abrirla; al cerrar la vista regresas a la galería. Se guarda una copia local en este navegador. Al abrir un archivo suelto, el visor crea un proyecto nuevo y cierra la vista anterior para evitar que las imágenes se superpongan. Si seleccionas una placa y una foto juntas, la foto sí se usa como overlay de esa placa.
+
 ## Zoom
 
 En la placa usa los botones +/− o la rueda del mouse; **Encuadrar** vuelve a mostrar la placa completa. En el panel de PSD, imágenes y PDF también hay controles +/− y **Encuadrar**. En PSD e imágenes puedes arrastrar la vista después de acercar.
