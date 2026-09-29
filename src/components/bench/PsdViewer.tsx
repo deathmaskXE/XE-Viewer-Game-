@@ -1,104 +1,74 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Eye, EyeOff } from "lucide-react";
-import { readPsdDocument, type PsdDocument } from "@/lib/board/psd";
 
-function paint(doc: PsdDocument, shown: boolean[]) {
-  const canvas = document.createElement("canvas");
-  canvas.width = Math.max(1, doc.width);
-  canvas.height = Math.max(1, doc.height);
-  const ctx = canvas.getContext("2d");
-  if (!ctx) return canvas;
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-  doc.layers.forEach((layer, index) => {
-    if (!shown[index] || !layer.rgba || layer.width < 1 || layer.height < 1) return;
-    const tile = document.createElement("canvas");
-    tile.width = layer.width;
-    tile.height = layer.height;
-    const tileCtx = tile.getContext("2d");
-    if (!tileCtx) return;
-    const pixels = new Uint8ClampedArray(layer.rgba);
-    tileCtx.putImageData(new ImageData(pixels, layer.width, layer.height), 0, 0);
-    ctx.globalAlpha = layer.opacity;
-    ctx.drawImage(tile, layer.left, layer.top);
-  });
-  ctx.globalAlpha = 1;
-  return canvas;
-}
+type Layer = { name: string; visible: boolean };
 
 export function PsdViewer({ url }: { url: string }) {
-  const [doc, setDoc] = useState<PsdDocument | null>(null);
+  const [layers, setLayers] = useState<Layer[] | null>(null);
   const [shown, setShown] = useState<boolean[]>([]);
+  const [preview, setPreview] = useState<string | null>(null);
   const [error, setError] = useState("");
   const [selected, setSelected] = useState(0);
-  const host = useRef<HTMLCanvasElement>(null);
+  const workerRef = useRef<Worker | null>(null);
+  const previewRef = useRef<string | null>(null);
 
   useEffect(() => {
-    let cancel = false;
-    setDoc(null);
+    let cancelled = false;
+    const worker = new Worker(new URL("../../lib/board/psd-viewer.worker.ts", import.meta.url), { type: "module" });
+    workerRef.current = worker;
+    setLayers(null);
+    setPreview(null);
     setError("");
+    worker.onmessage = (event: MessageEvent<{ kind: "layers" | "preview" | "error"; layers?: Layer[]; blob?: Blob; error?: string }>) => {
+      if (cancelled) return;
+      if (event.data.kind === "layers" && event.data.layers) {
+        setLayers(event.data.layers);
+        setShown(event.data.layers.map((layer) => layer.visible));
+        setSelected(Math.max(0, event.data.layers.length - 1));
+      } else if (event.data.kind === "preview" && event.data.blob) {
+        if (previewRef.current) URL.revokeObjectURL(previewRef.current);
+        previewRef.current = URL.createObjectURL(event.data.blob);
+        setPreview(previewRef.current);
+      } else if (event.data.kind === "error") setError(event.data.error || "No pude abrir las capas.");
+    };
+    worker.onerror = () => setError("No se pudo iniciar el lector de Photoshop.");
     void fetch(url)
       .then((response) => response.arrayBuffer())
-      .then((buffer) => {
-        if (cancel) return;
-        const next = readPsdDocument(new Uint8Array(buffer));
-        setDoc(next);
-        setShown(next.layers.map((layer) => layer.visible));
-        setSelected(Math.max(0, next.layers.length - 1));
-      })
-      .catch((reason: unknown) => {
-        if (!cancel) setError(reason instanceof Error ? reason.message : "No pude abrir las capas.");
-      });
+      .then((buffer) => { if (!cancelled) worker.postMessage({ kind: "open", buffer }, [buffer]); })
+      .catch((reason: unknown) => { if (!cancelled) setError(reason instanceof Error ? reason.message : "No pude leer el archivo."); });
     return () => {
-      cancel = true;
+      cancelled = true;
+      worker.terminate();
+      workerRef.current = null;
+      if (previewRef.current) URL.revokeObjectURL(previewRef.current);
+      previewRef.current = null;
     };
   }, [url]);
 
-  const preview = useMemo(() => (doc ? paint(doc, shown) : null), [doc, shown]);
-
   useEffect(() => {
-    const canvas = host.current;
-    if (!canvas || !preview) return;
-    canvas.width = preview.width;
-    canvas.height = preview.height;
-    canvas.getContext("2d")?.drawImage(preview, 0, 0);
-  }, [preview]);
+    if (layers) workerRef.current?.postMessage({ kind: "render", shown });
+  }, [layers, shown]);
 
   if (error) return <p className="p-4 text-sm text-muted">{error}</p>;
-  if (!doc || !preview) return <p className="p-4 text-sm text-muted">Leyendo capas…</p>;
+  if (!layers) return <p className="p-4 text-sm text-muted">Leyendo capas… Puedes seguir usando el visor.</p>;
 
   return (
     <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
       <div className="mesa-scroll flex min-h-0 flex-1 items-center justify-center overflow-auto bg-[#1a1c1b] p-3">
-        <canvas ref={host} className="max-w-full shadow-[0_0_0_1px_rgba(255,255,255,0.08)]" />
+        {preview ? <img src={preview} alt="Vista de las capas" className="max-w-full" /> : <p className="text-sm text-muted">Preparando vista…</p>}
       </div>
       <aside className="flex max-h-56 w-full shrink-0 flex-col border-t border-border bg-bg-elevated lg:max-h-none lg:w-60 lg:border-t-0 lg:border-l">
-        <p className="border-b border-border px-3 py-2 text-xs font-medium text-muted">Capas · {doc.layers.length}</p>
+        <p className="border-b border-border px-3 py-2 text-xs font-medium text-muted">Capas · {layers.length}</p>
         <div className="mesa-scroll min-h-0 flex-1 overflow-auto p-1">
-          {[...doc.layers].reverse().map((layer, reverseIndex) => {
-            const index = doc.layers.length - 1 - reverseIndex;
+          {[...layers].reverse().map((layer, reverseIndex) => {
+            const index = layers.length - 1 - reverseIndex;
             const visible = shown[index] !== false;
             return (
-              <div
-                key={`${layer.name}-${index}`}
-                className={`flex items-center gap-1 rounded-control px-1 py-1 ${selected === index ? "bg-bg-subtle" : ""}`}
-              >
-                <button
-                  type="button"
-                  className="flex size-8 items-center justify-center text-muted"
-                  aria-label={visible ? `Ocultar ${layer.name}` : `Mostrar ${layer.name}`}
-                  onClick={() =>
-                    setShown((current) => current.map((value, item) => (item === index ? !value : value)))
-                  }
-                >
+              <div key={`${layer.name}-${index}`} className={`flex items-center gap-1 rounded-control px-1 py-1 ${selected === index ? "bg-bg-subtle" : ""}`}>
+                <button type="button" className="flex size-8 items-center justify-center text-muted" aria-label={visible ? `Ocultar ${layer.name}` : `Mostrar ${layer.name}`} onClick={() => setShown((current) => current.map((value, item) => item === index ? !value : value))}>
                   {visible ? <Eye className="size-4" /> : <EyeOff className="size-4" />}
                 </button>
-                <button
-                  type="button"
-                  className="min-w-0 flex-1 truncate text-left text-sm"
-                  onClick={() => setSelected(index)}
-                >
-                  {layer.name || "Capa"}
-                </button>
+                <button type="button" className="min-w-0 flex-1 truncate text-left text-sm" onClick={() => setSelected(index)}>{layer.name || "Capa"}</button>
               </div>
             );
           })}

@@ -32,6 +32,7 @@ function sideLabel(side: Side): string {
 export function Bench() {
   const boot = useBench((state) => state.boot);
   const ready = useBench((state) => state.ready);
+  const importing = useBench((state) => state.importing);
   const projects = useBench((state) => state.projects);
   const project = useActiveProject();
   const urls = useBench((state) => state.urls);
@@ -225,9 +226,9 @@ export function Bench() {
           <h1 className="text-base font-medium tracking-tight">XE Game Viewer</h1>
           <p className="text-xs text-muted">Boardview, overlays y diagramas</p>
         </div>
-        <Button variant="primary" onClick={() => fileRef.current?.click()}>
+        <Button variant="primary" disabled={importing} onClick={() => fileRef.current?.click()}>
           <FolderOpen className="size-4" />
-          Abrir
+          {importing ? "Procesando…" : "Abrir"}
         </Button>
         <div className="flex rounded-panel border border-border p-1">
           {(

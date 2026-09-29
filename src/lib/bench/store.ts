@@ -1,8 +1,8 @@
 import { create } from "zustand";
-import { demoDiagramSvg, demoOverlay, createDemoBoard } from "@/lib/board/demo";
 import { prepare } from "@/lib/board/geometry";
-import { classifyFile, parseBoard } from "@/lib/board/parse";
-import { looksLikePhotoshop, photoshopToPng } from "@/lib/board/psd";
+import { classifyFile } from "@/lib/board/parse";
+import { looksLikePhotoshop } from "@/lib/board/psd";
+import { processFile } from "@/lib/board/process-file";
 import type { Board, BoardPoint } from "@/lib/board/types";
 import { MIL_PER_MM } from "@/lib/board/types";
 import { deleteProject, getBlob, listProjects, putBlob, saveProject } from "@/lib/bench/db";
@@ -12,6 +12,7 @@ type ZoomRequest = { token: number; target: "board" | number };
 
 type BenchState = {
   ready: boolean;
+  importing: boolean;
   projects: ProjectRecord[];
   activeId: string | null;
   urls: Record<string, string>;
@@ -120,6 +121,7 @@ function stem(name: string): string {
 
 export const useBench = create<BenchState>((set, get) => ({
   ready: false,
+  importing: false,
   projects: [],
   activeId: null,
   urls: {},
@@ -145,39 +147,47 @@ export const useBench = create<BenchState>((set, get) => ({
     if (!booting) {
       booting = (async () => {
         let projects = await listProjects();
+        // Keep any user files that were attached to the old sample project.
+        const migrated: ProjectRecord[] = [];
+        for (const project of projects) {
+          if (!project.sample) {
+            migrated.push(project);
+            continue;
+          }
+          const demoOverlays = project.overlays.filter((item) => item.name === "Máscara de ejemplo");
+          const demoDiagrams = project.diagrams.filter((item) => item.name === "Riel de potencia.svg");
+          const overlays = project.overlays.filter((item) => !demoOverlays.includes(item));
+          const diagrams = project.diagrams.filter((item) => !demoDiagrams.includes(item));
+          if (!overlays.length && !diagrams.length) {
+            await deleteProject(project.id, [...demoOverlays, ...demoDiagrams].map((item) => item.id));
+            continue;
+          }
+          const next: ProjectRecord = {
+            ...project,
+            name: "Mis archivos",
+            sample: false,
+            board: null,
+            sourceName: null,
+            overlays,
+            diagrams,
+          };
+          await saveProject(next);
+          migrated.push(next);
+        }
+        projects = migrated;
         if (projects.length === 0) {
-          const board = createDemoBoard();
-          const art = demoOverlay(board);
-          const overlayId = crypto.randomUUID();
-          const diagramId = crypto.randomUUID();
-          await putBlob(overlayId, new Blob([art.svg], { type: "image/svg+xml" }));
-          await putBlob(diagramId, new Blob([demoDiagramSvg()], { type: "image/svg+xml" }));
           const now = Date.now();
           const project: ProjectRecord = {
             id: crypto.randomUUID(),
-            name: "Ejemplo — potencia",
+            name: "Mi primera placa",
             created: now,
             updated: now,
-            sample: true,
-            board,
-            sourceName: "ejemplo",
-            unitsPerMm: board.unitsPerMm,
-            overlays: [
-              {
-                id: overlayId,
-                name: "Máscara de ejemplo",
-                opacity: 0.62,
-                visible: true,
-                above: false,
-                cx: art.cx,
-                cy: art.cy,
-                width: art.width,
-                rotation: 0,
-                flipX: false,
-                flipY: false,
-              },
-            ],
-            diagrams: [{ id: diagramId, name: "Riel de potencia.svg", mime: "image/svg+xml" }],
+            sample: false,
+            board: null,
+            sourceName: null,
+            unitsPerMm: MIL_PER_MM,
+            overlays: [],
+            diagrams: [],
           };
           await saveProject(project);
           projects = [project];
@@ -436,6 +446,23 @@ export const useBench = create<BenchState>((set, get) => ({
   requestZoom: (target) => set({ zoomRequest: { token: get().zoomRequest.token + 1, target } }),
 
   importFiles: async (files) => {
+    if (get().importing) return;
+    set({ importing: true });
+    try {
+      await importFilesImpl(files, set, get);
+    } catch (error) {
+      notify(set, error instanceof Error ? error.message : "No pude guardar los archivos.", true);
+    } finally {
+      set({ importing: false });
+    }
+  },
+}));
+
+async function importFilesImpl(
+  files: File[],
+  set: (partial: Partial<BenchState>) => void,
+  get: () => BenchState,
+): Promise<void> {
     const errors: string[] = [];
     const boards: { fileName: string; board: Board }[] = [];
     const extras: { file: File; role: "overlay" | "diagram" }[] = [];
@@ -451,8 +478,8 @@ export const useBench = create<BenchState>((set, get) => ({
       const role = classifyFile(file.name, file.type, buffer);
       if (looksLikePhotoshop(bytes) || /\.(psd|psb)$/i.test(file.name)) {
         try {
-          const png = await photoshopToPng(bytes);
-          const original = new File([bytes], file.name, { type: "image/vnd.adobe.photoshop" });
+          const png = await processFile(file, "psd");
+          const original = new File([file], file.name, { type: "image/vnd.adobe.photoshop" });
           extras.push({ file: new File([png], `${file.name}.png`, { type: "image/png" }), role: "overlay" });
           extras.push({ file: original, role: "diagram" });
         } catch (error) {
@@ -469,7 +496,7 @@ export const useBench = create<BenchState>((set, get) => ({
         continue;
       }
       try {
-        boards.push({ fileName: file.name, board: await parseBoard(file.name, buffer) });
+        boards.push({ fileName: file.name, board: await processFile(file, "board") });
       } catch (error) {
         errors.push(`${file.name}: ${error instanceof Error ? error.message : "no se pudo interpretar"}`);
       }
@@ -588,8 +615,7 @@ export const useBench = create<BenchState>((set, get) => ({
       .filter(Boolean)
       .join(" y ");
     notify(set, errors.length ? `${summary ? `${summary}. ` : ""}${errors.join(" ")}` : `Abierto: ${summary}.`, errors.length > 0);
-  },
-}));
+}
 
 export function useActiveProject(): ProjectRecord | null {
   return useBench((state) => state.projects.find((project) => project.id === state.activeId) ?? null);
