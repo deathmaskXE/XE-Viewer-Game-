@@ -263,7 +263,7 @@ export function Bench() {
         multiple
         className="sr-only"
         aria-label="Abrir archivos"
-        accept=".kicad_sch,.kicad_pro,.kicad_mod,.kicad_pcb,.bin,.brd,.bvr,.bdv,.fz,.cad,.asc,.pcb,.gencad,.gcd,.csv,.txt,.json,.png,.jpg,.jpeg,.webp,.gif,.bmp,.svg,.pdf,.psd,.psb,image/*,application/pdf"
+        accept=".sqlite3,.kicad_sch,.kicad_pro,.kicad_mod,.kicad_pcb,.bin,.brd,.bvr,.bdv,.fz,.cad,.asc,.pcb,.gencad,.gcd,.csv,.txt,.json,.png,.jpg,.jpeg,.webp,.gif,.bmp,.svg,.pdf,.psd,.psb,image/*,application/pdf"
         onChange={(event) => {
           const list = event.target.files;
           if (list?.length) void importFiles([...list]);

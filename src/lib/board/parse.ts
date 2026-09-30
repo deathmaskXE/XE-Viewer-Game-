@@ -88,6 +88,7 @@ export function classifyFile(name: string, mime: string, data: ArrayBuffer): Fil
   const ext = extOf(name);
   const bytes = new Uint8Array(data);
   const kind = sniff(bytes);
+  if (looksLikeXzz(bytes)) return "board";
   if (kind === "pdf" || ext === "pdf" || mime === "application/pdf") return "diagram";
   if (kind === "svg" || ext === "svg" || mime === "image/svg+xml") return "diagram";
   if (kind === "image" || IMAGE_EXT.has(ext) || (mime.startsWith("image/") && ext !== "svg")) return "overlay";
