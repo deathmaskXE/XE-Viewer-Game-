@@ -1,4 +1,5 @@
 import { MIL_PER_MM, type Board, type BoardNail, type BoardPart, type BoardPin, type Side } from "./types.ts";
+import { parseKicad } from "./kicad.ts";
 import { largestClosedContour } from "./contour.ts";
 import { looksLikeXzz, parseXzz } from "./xzz.ts";
 
@@ -11,6 +12,7 @@ export class BoardParseError extends Error {
 
 const IMAGE_EXT = new Set(["png", "jpg", "jpeg", "webp", "gif", "bmp"]);
 const BOARD_EXT = new Set([
+  "kicad_pcb",
   "bin",
   "brd",
   "bvr",
@@ -913,6 +915,7 @@ function parseJson(name: string, text: string): Board {
 
 function parseText(name: string, text: string): Board {
   const sample = text.slice(0, 8000);
+  if (/^\s*\(kicad_pcb\b/.test(sample)) return parseKicad(name, text);
   if (sample.trimStart().startsWith("{")) return parseJson(name, text);
   if (sample.includes("BVRAW_FORMAT_1") || sample.includes("<<Pin>>")) return parseBvr(name, text);
   if (sample.includes("BRDOUT:") && sample.includes("NETS:")) return parseBrd2(name, text);

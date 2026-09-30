@@ -37,3 +37,6 @@ Los `.bin` se reconocen por su contenido si usan un formato ya compatible (XZZ, 
 
 ### NexusBV web
 La pestaña NexusBV carga https://web.nexusbv.net/ en una vista integrada. Depende de la disponibilidad y permisos de incrustación del sitio externo. Abrir aparte permite usarlo en otra pestaña si está bloqueado. Cada visor administra sus archivos de manera independiente; no se transfieren automáticamente archivos de XE a NexusBV. La pestaña conserva su sesión mientras alternas entre visores, hasta recargar la página.
+
+### KiCad
+Abre placas .kicad_pcb de formato S-expression, incluidas las variantes module y footprint. Importa referencias, posiciones, rotaciones, pads como puntos, redes, pistas, vías y bordes Edge.Cuts (líneas, rectángulos, polígonos, círculos y arcos). La vista es simplificada: no reproduce las formas exactas de todos los pads, zonas de cobre, capas gráficas completas ni modelos 3D. Los esquemas .kicad_sch, proyectos .kicad_pro y el formato BRD antiguo de KiCad no están implementados.

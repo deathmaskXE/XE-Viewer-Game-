@@ -152,3 +152,38 @@ $ENDSIGNALS`;
   assert.ok(Math.abs(board.pins[2].x - 230) < 0.001);
   assert.ok(Math.abs(board.pins[2].y - 250) < 0.001);
 });
+
+test("KiCad reads rotated footprints, nets, vias and Edge.Cuts in millimeters", async () => {
+  const source = `(kicad_pcb (version 20240108)
+    (net 1 "GND")
+    (footprint "Package:QFN" (layer "F.Cu") (at 10 20 90)
+      (property "Reference" "U1") (property "Value" "IC")
+      (pad "1" smd rect (at 2 0) (size 1 1) (layers "F.Cu") (net 1 "GND"))
+      (pad "2" thru_hole circle (at -2 0) (size 1 1) (layers "*.Cu") (net 1 "GND")))
+    (via (at 5 5) (net 1))
+    (segment (start 5 5) (end 10 18) (layer "F.Cu") (net 1))
+    (gr_rect (start 0 0) (end 30 40) (layer "Edge.Cuts")))`;
+  const board = await parseBoard("controller.kicad_pcb", new TextEncoder().encode(source));
+  assert.equal(board.format, "KiCad");
+  assert.equal(board.parts[0].name, "U1");
+  assert.equal(board.pins.length, 3);
+  assert.equal(board.pins[0].net, "GND");
+  assert.equal(board.pins[1].side, "both");
+  assert.ok(Math.abs(board.pins[0].x / board.unitsPerMm - 10) < 0.00001);
+  assert.ok(Math.abs(board.pins[0].y / board.unitsPerMm + 18) < 0.00001);
+  assert.equal(board.outline.length, 4);
+  assert.ok(board.segments.some(s => s.net === "GND"));
+});
+
+test("KiCad supports old module references, quoted strings and curved boundaries", async () => {
+  const source = `(kicad_pcb (version 20171130)
+    (module "R" (layer "B.Cu") (at 0 0) (fp_text reference "R1")
+      (pad 1 smd rect (at 0 0) (layers "B.Cu") (net 1 "a\\\"b")))
+    (gr_arc (start 1 0) (mid 0 1) (end -1 0) (layer "Edge.Cuts"))
+    (gr_line (start -1 0) (end 1 0) (layer "Edge.Cuts")))`;
+  const board = await parseBoard("old.kicad_pcb", new TextEncoder().encode(source));
+  assert.equal(board.parts[0].name, "R1");
+  assert.equal(board.parts[0].side, "bottom");
+  assert.equal(board.pins[0].net, 'a"b');
+  assert.ok(board.outline.length > 10);
+});
