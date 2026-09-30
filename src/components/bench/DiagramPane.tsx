@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Languages, LocateFixed, Minus, Plus, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PsdViewer } from "@/components/bench/PsdViewer";
+import { FittedImage } from "./FittedImage";
 import { TextOverlay } from "@/components/bench/TextOverlay";
 import type { TextRegion } from "@/lib/bench/translation";
 import { TranslationPanel } from "@/components/bench/TranslationPanel";
@@ -26,6 +27,8 @@ export function DiagramPane({
   const [regions, setRegions] = useState<TextRegion[]>([]);
   const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
   const [page, setPage] = useState(1);
+  const [pdfPages, setPdfPages] = useState(1);
+  const [pdfError, setPdfError] = useState("");
   const [pdfImage, setPdfImage] = useState<string | null>(null);
   const [imageSize, setImageSize] = useState({ width: 0, height: 0 });
   const drag = useRef<{ x: number; y: number; px: number; py: number } | null>(null);
@@ -53,6 +56,7 @@ export function DiagramPane({
 
   useEffect(() => {
     if (!pdf) return;
+    setPdfError("");
     let cancelled = false;
     let imageUrl: string | null = null;
     void (async () => {
@@ -62,6 +66,7 @@ export function DiagramPane({
       const task = pdfjs.getDocument({ data: new Uint8Array(await response.arrayBuffer()) });
       try {
         const document = await task.promise;
+        setPdfPages(document.numPages);
         const sheet = await document.getPage(page);
         const base = sheet.getViewport({ scale: 1 });
         const viewport = sheet.getViewport({ scale: Math.min(2.5, 2400 / Math.max(base.width, base.height)) });
@@ -73,7 +78,7 @@ export function DiagramPane({
         const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve));
         if (blob && !cancelled) { imageUrl = URL.createObjectURL(blob); setPdfImage(imageUrl); }
       } finally { await task.destroy(); }
-    })().catch(() => { if (!cancelled) setPdfImage(null); });
+    })().catch((error) => { if (!cancelled) { setPdfImage(null); setPdfError(error instanceof Error ? error.message : "No pude abrir el PDF."); } });
     return () => { cancelled = true; if (imageUrl) URL.revokeObjectURL(imageUrl); setPdfImage(null); };
   }, [pdf, url, page]);
 
@@ -90,6 +95,7 @@ export function DiagramPane({
           <X className="size-4" />
         </Button>
       </div>
+      {pdf ? <label className="flex items-center gap-2 border-b border-border px-3 py-1 text-xs">Página <input aria-label="Página del PDF" type="number" min={1} max={pdfPages} value={page} className="w-16 rounded border border-border bg-bg p-1" onChange={(event) => { setPage(Math.min(pdfPages, Math.max(1, Number(event.target.value) || 1))); setRegions([]); }} /> de {pdfPages}</label> : null}
       {photoshop ? (
         <PsdViewer url={url} regions={regions} dimensions={dimensions} zoom={zoom} onZoom={setZoom} pan={pan} onPan={setPan} />
       ) : pdf ? (
@@ -97,7 +103,7 @@ export function DiagramPane({
           {pdfImage ? <div className="relative mx-auto" style={{ width: `min(100%, ${dimensions.width || 1200}px)`, zoom }}>
             <img src={pdfImage} alt={`${diagram.name}, página ${page}`} draggable={false} className="block w-full select-none" />
             <TextOverlay regions={regions} {...dimensions} />
-          </div> : <p className="p-4 text-sm text-muted">Preparando página…</p>}
+          </div> : <p className="p-4 text-sm text-muted">{pdfError || "Preparando página…"}</p>}
         </div>
       ) : (
         <div
@@ -119,16 +125,7 @@ export function DiagramPane({
           }}
           onPointerCancel={() => { drag.current = null; }}
         >
-          <div className="absolute top-1/2 left-1/2 max-h-full max-w-full select-none" style={{ transform: `translate(-50%, -50%) translate(${pan.x}px, ${pan.y}px) scale(${zoom})`, width: imageSize.width ? `min(100%, ${imageSize.width}px)` : "auto", containerType: imageSize.width ? "inline-size" : undefined }}>
-          <img
-            src={url}
-            alt={diagram.name}
-            draggable={false}
-            onLoad={(event) => setImageSize({ width: event.currentTarget.naturalWidth, height: event.currentTarget.naturalHeight })}
-            className="block h-auto max-h-[80vh] max-w-full select-none"
-          />
-          <TextOverlay regions={regions} {...dimensions} />
-          </div>
+          <FittedImage url={url} alt={diagram.name} zoom={zoom} pan={pan} regions={regions} dimensions={dimensions} />
         </div>
       )}
       {translationOpen ? <TranslationPanel url={url} name={diagram.name} mime={diagram.mime} page={page} onPage={(value) => { setPage(value); setRegions([]); }} onOverlay={(next, width, height) => { setRegions(next); setDimensions({ width, height }); }} onClose={() => setTranslationOpen(false)} /> : null}

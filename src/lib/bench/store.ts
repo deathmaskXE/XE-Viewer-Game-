@@ -1,3 +1,4 @@
+import { schematicSvg } from "@/lib/board/kicad-schematic";
 import { create } from "zustand";
 import { prepare } from "@/lib/board/geometry";
 import { classifyFile } from "@/lib/board/parse";
@@ -47,7 +48,7 @@ type BenchState = {
   setMeasurePoint: (point: BoardPoint) => void;
   openFiles: (open?: boolean) => void;
   openParts: (open?: boolean) => void;
-  importFiles: (files: File[]) => Promise<void>;
+  importFiles: (files: File[], compare?: boolean) => Promise<void>;
   importFolder: (files: File[]) => Promise<void>;
   activate: (id: string) => Promise<void>;
   rename: (id: string, name: string) => Promise<void>;
@@ -453,11 +454,11 @@ export const useBench = create<BenchState>((set, get) => ({
   },
   requestZoom: (target) => set({ zoomRequest: { token: get().zoomRequest.token + 1, target } }),
 
-  importFiles: async (files) => {
+  importFiles: async (files, compare = false) => {
     if (get().importing) return;
     set({ importing: true });
     try {
-      await importFilesImpl(files, set, get);
+      await importFilesImpl(files, set, get, compare);
     } catch (error) {
       notify(set, error instanceof Error ? error.message : "No pude guardar los archivos.", true);
     } finally {
@@ -517,6 +518,7 @@ async function importFilesImpl(
   files: File[],
   set: (partial: Partial<BenchState>) => void,
   get: () => BenchState,
+  compare = false,
 ): Promise<void> {
     const errors: string[] = [];
     const boards: { fileName: string; board: Board }[] = [];
@@ -527,6 +529,15 @@ async function importFilesImpl(
         buffer = await file.arrayBuffer();
       } catch {
         errors.push(`No pude leer ${file.name}.`);
+        continue;
+      }
+      if (/\.kicad_pro$/i.test(file.name)) {
+        try { JSON.parse(new TextDecoder().decode(buffer)); } catch { errors.push(`${file.name}: proyecto KiCad inválido.`); }
+        continue;
+      }
+      if (/\.kicad_sch$/i.test(file.name)) {
+        try { const svg = schematicSvg(new TextDecoder().decode(buffer)); extras.push({ file: new File([svg], `${file.name}.svg`, { type: "image/svg+xml" }), role: "diagram" }); }
+        catch (error) { errors.push(`${file.name}: ${error instanceof Error ? error.message : "no pude leer el esquema"}`); }
         continue;
       }
       const bytes = new Uint8Array(buffer);
@@ -643,6 +654,13 @@ async function importFilesImpl(
           targetId = next.id;
         }
       }
+    } else if (compare && active?.board) {
+      const items = extras.filter(item => !(item.role === "overlay" && /\.ps[db]\.png$/i.test(item.file.name))).map(item => ({ ...item, role: "diagram" as const }));
+      const attached = await attach({ ...active, diagrams: [] }, items);
+      const next = { ...active, diagrams: attached.diagrams, updated: Date.now() };
+      await saveProject(next);
+      set({ projects: get().projects.map(project => project.id === next.id ? next : project) });
+      targetId = next.id;
     } else {
       // A separately opened image or PDF is a new document, not an overlay
       // on the previous board. A PSD uses its original layer file as the view.
@@ -670,7 +688,7 @@ async function importFilesImpl(
     }
 
     if (targetId) await get().activate(targetId);
-    if (boards.length === 0 || extras.some((item) => item.role === "diagram" && item.file.type.includes("photoshop"))) {
+    if (boards.length === 0 || extras.some((item) => item.role === "diagram")) {
       set({ diagramOpen: true });
     }
     const summary = [

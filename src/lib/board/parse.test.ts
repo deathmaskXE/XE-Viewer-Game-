@@ -201,3 +201,16 @@ test("standalone KiCad footprint retains pads and body graphics", async () => {
   assert.equal(board.pins[0].name, "A1");
   assert.equal(board.segments.length, 4);
 });
+
+test("KiCad schematic renders embedded symbols, labels and wires safely", async () => {
+  const { schematicSvg } = await import("./kicad-schematic.ts");
+  const svg = schematicSvg(`(kicad_sch (paper "A4")
+    (lib_symbols (symbol "Device:R" (symbol "R_0_1" (rectangle (start -1 -2) (end 1 2)))))
+    (wire (pts (xy 10 10) (xy 20 10)))
+    (symbol (lib_id "Device:R") (at 20 10 90) (unit 1) (property "Reference" "R1" (at 22 10)))
+    (label "A&B" (at 10 10)))`);
+  assert.ok(svg.includes('rotate(-90)'));
+  assert.ok(svg.includes('A&amp;B'));
+  assert.ok(svg.includes('R1'));
+  assert.ok(svg.includes('10,10 20,10'));
+});

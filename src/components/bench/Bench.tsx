@@ -89,6 +89,7 @@ export function Bench() {
   const nudgeOverlay = useBench((state) => state.nudgeOverlay);
   const fitOverlay = useBench((state) => state.fitOverlay);
 
+  const compareRef = useRef<HTMLInputElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const folderRef = useRef<HTMLInputElement>(null);
   const viewRef = useRef<ViewportHandle>(null);
@@ -251,13 +252,14 @@ export function Bench() {
           .finally(() => setReadingFolder(false));
       }}
     >
+      <input ref={compareRef} type="file" className="sr-only" aria-label="Elegir diagrama para comparar" accept=".psd,.psb,.pdf,.png,.jpg,.jpeg,.webp,.svg,.kicad_sch" onChange={(event) => { const files = event.target.files; if(files?.length) void importFiles([...files], true); event.target.value = ""; }} />
       <input
         ref={fileRef}
         type="file"
         multiple
         className="sr-only"
         aria-label="Abrir archivos"
-        accept=".kicad_mod,.kicad_pcb,.bin,.brd,.bvr,.bdv,.fz,.cad,.asc,.pcb,.gencad,.gcd,.csv,.txt,.json,.png,.jpg,.jpeg,.webp,.gif,.bmp,.svg,.pdf,.psd,.psb,image/*,application/pdf"
+        accept=".kicad_sch,.kicad_pro,.kicad_mod,.kicad_pcb,.bin,.brd,.bvr,.bdv,.fz,.cad,.asc,.pcb,.gencad,.gcd,.csv,.txt,.json,.png,.jpg,.jpeg,.webp,.gif,.bmp,.svg,.pdf,.psd,.psb,image/*,application/pdf"
         onChange={(event) => {
           const list = event.target.files;
           if (list?.length) void importFiles([...list]);
@@ -303,6 +305,7 @@ export function Bench() {
           {readingFolder ? "Leyendo carpeta…" : "Abrir carpeta"}
         </Button>
         {boardTools ? <>
+        <Button variant="quiet" disabled={importing} onClick={() => compareRef.current?.click()}>Comparar diagrama</Button>
         <div className="flex rounded-panel border border-border p-1">
           {(
             [
@@ -445,8 +448,8 @@ export function Bench() {
         </aside>
 
         <div className="relative flex min-w-0 flex-1">
-          <div className={cn("grid min-h-0 min-w-0 flex-1", diagramOpen && diagramUrl && activeDiagram && "lg:grid-cols-2")}>
-            <div className={cn("relative flex min-h-0 min-w-0", diagramOpen && diagramUrl && "max-lg:hidden")}>
+          <div className={cn("grid min-h-0 min-w-0 flex-1", diagramOpen && diagramUrl && activeDiagram && "grid-cols-1 grid-rows-2 lg:grid-rows-1 lg:grid-cols-[minmax(0,1fr)_minmax(320px,38%)]")}>
+            <div className={cn("relative flex min-h-0 min-w-0", diagramOpen && diagramUrl && "min-h-0")}>
               {ready && project?.folder ? (
                 <FolderGallery
                   name={project.name}
@@ -486,7 +489,7 @@ export function Bench() {
               ) : null}
             </div>
             {diagramOpen && activeDiagram && diagramUrl ? (
-              <DiagramPane diagram={activeDiagram} url={diagramUrl} onClose={toggleDiagram} />
+              <DiagramPane key={activeDiagram.id} diagram={activeDiagram} url={diagramUrl} onClose={toggleDiagram} />
             ) : null}
           </div>
           {notice ? (

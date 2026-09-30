@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type Dispatch, type SetStateAction } from "react";
-import { TextOverlay } from "./TextOverlay";
+import { FittedImage } from "./FittedImage";
 import type { TextRegion } from "@/lib/bench/translation";
 import { Eye, EyeOff } from "lucide-react";
 
@@ -93,7 +93,7 @@ export function PsdViewer({ url, zoom, onZoom, pan, onPan, regions, dimensions }
         onPointerUp={() => { drag.current = null; }}
         onPointerCancel={() => { drag.current = null; }}
       >
-        {preview ? <div className="absolute top-1/2 left-1/2 max-h-full max-w-full select-none" style={{ transform: `translate(-50%, -50%) translate(${pan.x}px, ${pan.y}px) scale(${zoom})`, width: previewSize.width ? `min(100%, ${previewSize.width}px)` : "auto", containerType: previewSize.width ? "inline-size" : undefined }}><img src={preview} alt="Vista de las capas" draggable={false} onLoad={(event) => setPreviewSize({ width: event.currentTarget.naturalWidth, height: event.currentTarget.naturalHeight })} className="block max-h-[80vh] max-w-full" /><TextOverlay regions={regions} {...dimensions} /></div> : <p className="p-4 text-sm text-muted">Preparando vista…</p>}
+        {preview ? <FittedImage url={preview} alt="Vista de las capas" zoom={zoom} pan={pan} regions={regions} dimensions={dimensions} /> : <p className="p-4 text-sm text-muted">Preparando vista…</p>}
       </div>
       <aside className="flex max-h-56 w-full shrink-0 flex-col border-t border-border bg-bg-elevated lg:max-h-none lg:w-60 lg:border-t-0 lg:border-l">
         <p className="border-b border-border px-3 py-2 text-xs font-medium text-muted">Capas · {layers.length}</p>

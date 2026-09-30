@@ -8,7 +8,7 @@ const number = (node: Node, index: number) => Number(node[index]) || 0;
 const str = (node: Node, index: number) => typeof node[index] === "string" ? node[index] as string : "";
 const point = (node: Node): BoardPoint => ({ x: number(node, 1), y: number(node, 2) });
 
-function readTree(text: string): Node {
+export function readTree(text: string): Node {
   const tokens = text.match(/"(?:\\.|[^"\\])*"|[()]|[^\s()]+/g) ?? [];
   const root: Node = [], stack = [root];
   for (const token of tokens) {
@@ -20,7 +20,7 @@ function readTree(text: string): Node {
   return root[0];
 }
 
-function arcPoints(start: BoardPoint, mid: BoardPoint, end: BoardPoint): BoardPoint[] {
+export function arcPoints(start: BoardPoint, mid: BoardPoint, end: BoardPoint): BoardPoint[] {
   const d = 2 * (start.x * (mid.y - end.y) + mid.x * (end.y - start.y) + end.x * (start.y - mid.y));
   if (Math.abs(d) < 1e-10) return [start, end];
   const norm = (p: BoardPoint) => p.x * p.x + p.y * p.y;
