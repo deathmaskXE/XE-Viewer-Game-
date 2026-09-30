@@ -47,6 +47,8 @@ export type Board = {
   /** How many file units make one millimeter. */
   unitsPerMm: number;
   outline: BoardPoint[];
+  /** Boundary edges when the source does not provide a single closed polygon. */
+  outlineSegments?: BoardSegment[];
   segments: BoardSegment[];
   parts: BoardPart[];
   pins: BoardPin[];

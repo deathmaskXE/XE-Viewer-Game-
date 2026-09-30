@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { largestClosedContour } from "./contour.ts";
 import { brdCipherByte, parseBoard } from "./parse.ts";
 
 const PLAIN = `str_length:
@@ -92,4 +93,20 @@ test("CSV groups pins by reference", async () => {
   assert.equal(board.parts.length, 1);
   assert.equal(board.parts[0]?.name, "C10");
   assert.equal(board.pins[1]?.net, "VCC");
+});
+
+
+test("BIN detects compatible content and rejects unknown binary data", async () => {
+  const board = await parseBoard("control.bin", encodeBrd(PLAIN));
+  assert.equal(board.pins.length, 3);
+  await assert.rejects(parseBoard("firmware.bin", Uint8Array.of(0, 255, 2, 1)), /no contiene un boardview reconocido/);
+});
+
+test("boundary stitching preserves a concave silhouette from unordered edges", () => {
+  const shape = [{x:0,y:0},{x:4,y:0},{x:4,y:2},{x:2,y:2},{x:2,y:4},{x:0,y:4}];
+  const edges = shape.map((a, i) => [a, shape[(i + 1) % shape.length]]);
+  const contour = largestClosedContour([edges[3], edges[0], edges[5], edges[2], edges[1], edges[4]].flat());
+  assert.equal(contour.length, 6);
+  assert.ok(contour.some(p => p.x === 2 && p.y === 2));
+  assert.equal(largestClosedContour([{x:0,y:0},{x:1,y:0}]).length, 0);
 });

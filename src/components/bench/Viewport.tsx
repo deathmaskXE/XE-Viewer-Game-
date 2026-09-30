@@ -7,6 +7,7 @@ import { useBench } from "@/lib/bench/store";
 
 export type ViewportHandle = {
   fit: () => void;
+  rotateBy: (degrees: number) => void;
   zoomBy: (factor: number) => void;
   panBy: (dx: number, dy: number) => void;
 };
@@ -43,6 +44,7 @@ export function Viewport({ board, projectId, overlays, urls, unitsPerMm, ref }: 
   const wrapRef = useRef<HTMLDivElement>(null);
   const cam = useRef<Cam>({ x: 0, y: 0, zoom: 1 });
   const fitZoom = useRef(1);
+  const rotation = useRef(0);
   const userMoved = useRef(false);
   const size = useRef({ w: 1, h: 1 });
   const [hud, setHud] = useState("100%");
@@ -138,7 +140,7 @@ export function Viewport({ board, projectId, overlays, urls, unitsPerMm, ref }: 
 
   const publishHud = () => {
     const pct = Math.round((cam.current.zoom / Math.max(fitZoom.current, 1e-9)) * 100);
-    setHud(`${pct}%`);
+    setHud(`${pct}% · ${rotation.current}°`);
   };
 
   const draw = () => {
@@ -159,6 +161,9 @@ export function Viewport({ board, projectId, overlays, urls, unitsPerMm, ref }: 
     ctx.clearRect(0, 0, w, h);
     ctx.fillStyle = PAL.bg;
     ctx.fillRect(0, 0, w, h);
+    ctx.translate(w / 2, h / 2);
+    ctx.rotate(rotation.current * Math.PI / 180);
+    ctx.translate(-w / 2, -h / 2);
     const drawOverlays = (above: boolean) => {
       for (const overlay of current.overlays) {
         if (!overlay.visible || overlay.above !== above) continue;
@@ -317,6 +322,17 @@ export function Viewport({ board, projectId, overlays, urls, unitsPerMm, ref }: 
       }
     }
 
+    if (live.outlineSegments?.length) {
+      ctx.beginPath();
+      for (const edge of live.outlineSegments) {
+        const a = project(edge.x1, edge.y1), b = project(edge.x2, edge.y2);
+        ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y);
+      }
+      ctx.strokeStyle = PAL.nail;
+      ctx.lineWidth = 2;
+      ctx.stroke();
+    }
+
     drawOverlays(true);
 
     if (current.measureA) {
@@ -369,7 +385,8 @@ export function Viewport({ board, projectId, overlays, urls, unitsPerMm, ref }: 
     const bh = Math.max(1e-6, box.maxY - box.minY);
     const cx = (box.minX + box.maxX) / 2;
     const cy = (box.minY + box.maxY) / 2;
-    cam.current.zoom = Math.min((w * pad) / bw, (h * pad) / bh);
+    const swapped = Math.abs(rotation.current % 180) === 90;
+    cam.current.zoom = Math.min(((swapped ? h : w) * pad) / bw, ((swapped ? w : h) * pad) / bh);
     const mx = latest.current.mirror ? originX * 2 - cx : cx;
     cam.current.x = mx;
     cam.current.y = cy;
@@ -386,6 +403,11 @@ export function Viewport({ board, projectId, overlays, urls, unitsPerMm, ref }: 
 
   useImperativeHandle(ref, () => ({
     fit,
+    rotateBy: (degrees) => {
+      rotation.current = (rotation.current + degrees + 360) % 360;
+      if (latest.current.prep) fitBox(latest.current.prep.bounds, 0.9, true);
+      else { publishHud(); requestDraw(); }
+    },
     zoomBy: (factor) => {
       userMoved.current = true;
       cam.current.zoom = Math.min(800, Math.max(0.0002, cam.current.zoom * factor));
@@ -425,6 +447,7 @@ export function Viewport({ board, projectId, overlays, urls, unitsPerMm, ref }: 
 
   useEffect(() => {
     userMoved.current = false;
+    rotation.current = 0;
     fitted.current = null;
     if (!prep || size.current.w < 8) return;
     fitted.current = projectId ?? "";
@@ -483,8 +506,9 @@ export function Viewport({ board, projectId, overlays, urls, unitsPerMm, ref }: 
     const onWheel = (event: WheelEvent) => {
       event.preventDefault();
       const rect = canvas.getBoundingClientRect();
-      const sx = event.clientX - rect.left;
-      const sy = event.clientY - rect.top;
+      const point = screenPoint(event.clientX - rect.left, event.clientY - rect.top);
+      const sx = point.sx;
+      const sy = point.sy;
       const current = latest.current;
       if (current.tool === "overlay" && current.activeOverlayId && (event.altKey || event.shiftKey)) {
         current.scaleOverlay(Math.exp(-event.deltaY * 0.001));
@@ -523,9 +547,15 @@ export function Viewport({ board, projectId, overlays, urls, unitsPerMm, ref }: 
     void document.fonts.ready.then(() => requestDraw());
   }, [board]);
 
+  const screenPoint = (sx: number, sy: number) => {
+    const dx = sx - size.current.w / 2, dy = sy - size.current.h / 2;
+    const angle = -rotation.current * Math.PI / 180;
+    return { sx: dx * Math.cos(angle) - dy * Math.sin(angle) + size.current.w / 2, sy: dx * Math.sin(angle) + dy * Math.cos(angle) + size.current.h / 2 };
+  };
+
   const localPoint = (event: { clientX: number; clientY: number }) => {
     const rect = canvasRef.current?.getBoundingClientRect();
-    return { sx: event.clientX - (rect?.left ?? 0), sy: event.clientY - (rect?.top ?? 0) };
+    return screenPoint(event.clientX - (rect?.left ?? 0), event.clientY - (rect?.top ?? 0));
   };
 
   const hitOverlay = (sx: number, sy: number) => {
@@ -607,7 +637,8 @@ export function Viewport({ board, projectId, overlays, urls, unitsPerMm, ref }: 
               pin?.net ||
               pickTrace(latest.current.board, world.x, world.y, 14 / cam.current.zoom);
             const label = part ? part.name : trace || "";
-            setHover(label ? { sx: point.sx, sy: point.sy, label: trace && part ? `${label} · ${trace}` : label } : null);
+            const rect = canvasRef.current?.getBoundingClientRect();
+            setHover(label ? { sx: event.clientX - (rect?.left ?? 0), sy: event.clientY - (rect?.top ?? 0), label: trace && part ? `${label} · ${trace}` : label } : null);
           } else setHover(null);
 
           if (pointers.current.size === 2) {

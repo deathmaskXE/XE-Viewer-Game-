@@ -10,6 +10,7 @@ export class BoardParseError extends Error {
 
 const IMAGE_EXT = new Set(["png", "jpg", "jpeg", "webp", "gif", "bmp"]);
 const BOARD_EXT = new Set([
+  "bin",
   "brd",
   "bvr",
   "bdv",
@@ -955,5 +956,10 @@ export async function parseBoard(name: string, data: ArrayBuffer | Uint8Array): 
       throw new BoardParseError("Descomprimí el .fz, pero el contenido no es un boardview de texto que reconozca.");
     }
   }
-  return parseText(name, decodeText(bytes));
+  try {
+    return parseText(name, decodeText(bytes));
+  } catch (reason) {
+    if (ext === "bin") throw new BoardParseError("Este .BIN no contiene un boardview reconocido. Puede ser firmware o un formato propietario. Comparte este archivo para identificar su formato.");
+    throw reason;
+  }
 }

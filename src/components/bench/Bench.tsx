@@ -12,6 +12,8 @@ import {
   Move,
   Plus,
   Ruler,
+  RotateCcw,
+  RotateCw,
   Search,
   Trash2,
   X,
@@ -252,7 +254,7 @@ export function Bench() {
         multiple
         className="sr-only"
         aria-label="Abrir archivos"
-        accept=".brd,.bvr,.bdv,.fz,.cad,.asc,.pcb,.gencad,.gcd,.csv,.txt,.json,.png,.jpg,.jpeg,.webp,.gif,.bmp,.svg,.pdf,.psd,.psb,image/*,application/pdf"
+        accept=".bin,.brd,.bvr,.bdv,.fz,.cad,.asc,.pcb,.gencad,.gcd,.csv,.txt,.json,.png,.jpg,.jpeg,.webp,.gif,.bmp,.svg,.pdf,.psd,.psb,image/*,application/pdf"
         onChange={(event) => {
           const list = event.target.files;
           if (list?.length) void importFiles([...list]);
@@ -322,6 +324,8 @@ export function Bench() {
         >
           <FlipHorizontal2 className="size-4" />
         </Button>
+        <Button size="icon" variant="quiet" aria-label="Girar placa a la izquierda" title="Girar 90° a la izquierda" onClick={() => viewRef.current?.rotateBy(-90)}><RotateCcw className="size-4" /></Button>
+        <Button size="icon" variant="quiet" aria-label="Girar placa a la derecha" title="Girar 90° a la derecha" onClick={() => viewRef.current?.rotateBy(90)}><RotateCw className="size-4" /></Button>
         <div className="ml-auto flex gap-1">
           <Button size="icon" variant={tool === "navigate" ? "primary" : "quiet"} aria-label="Navegar" title="Navegar (N)" onClick={() => setTool("navigate")}>
             <Crosshair className="size-4" />
@@ -421,7 +425,7 @@ export function Bench() {
             <details className="mt-2 rounded-panel border border-border px-3 py-2 text-sm">
               <summary className="text-sm font-medium">Formatos y atajos</summary>
               <div className="mt-2 space-y-2 text-xs leading-relaxed text-muted">
-                <p>Placa: .brd (con o sin cifra de OpenBoardView), BRD2, .bvr, .pcb de XinZhiZao, GenCAD, ASCII de Altium, CSV y JSON.</p>
+                <p>Placa: .bin con contenido compatible, .brd (con o sin cifra de OpenBoardView), BRD2, .bvr, .pcb de XinZhiZao, GenCAD, ASCII de Altium, CSV y JSON.</p>
                 <p>Una imagen abierta sola se muestra como documento. Si eliges una placa y una imagen juntas, la imagen se alinea como overlay. También abre PDF, SVG y Photoshop (.psd, .psb).</p>
                 <p>Abrir carpeta muestra sus imágenes y PDF como una galería, incluso dentro de subcarpetas. No requiere ZIP.</p>
                 <p>Toca una pista o un pin: toda esa red se marca en rojo. En un Photoshop, abre el panel de la derecha para ver y ocultar capas.</p>

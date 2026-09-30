@@ -29,3 +29,8 @@ En la placa usa los botones +/− o la rueda del mouse; **Encuadrar** vuelve a m
 Abre una imagen, PSD o PDF y pulsa **Traducir**. Elige el idioma original y el idioma de destino (español por defecto), pulsa **Leer texto** y revisa/corrige lo reconocido. Después pulsa **Traducir texto**. Se incluyen inglés, español, portugués, francés, alemán, italiano, japonés, coreano, chino simplificado y ruso. En los PDF puedes indicar la página; si es escaneada, se aplica OCR. También aparece el botón de traducción junto a cada overlay.
 
 El OCR se ejecuta en el navegador con Tesseract.js y descarga los datos del idioma en el primer uso. Chrome de escritorio puede traducir con su modelo local; en otros navegadores o si el modelo no está disponible, el botón de traducción usa MyMemory. En ese caso se envía solo el texto detectado, nunca el archivo de imagen. El servicio externo requiere conexión y puede tener límites de uso.
+
+### Giro y contornos
+Los botones de giro cambian la orientación del boardview en pasos de 90°. El contorno corresponde a la placa y depende de las líneas incluidas en el archivo; no representa la carcasa completa del control o consola. Los PCB XZZ conservan sus bordes y curvas en vez de reemplazarlos por un rectángulo.
+
+Los `.bin` se reconocen por su contenido si usan un formato ya compatible (XZZ, BRD, BVR, JSON, etc.). Los BIN de firmware o de formatos propietarios desconocidos requieren otro lector y muestran un aviso.

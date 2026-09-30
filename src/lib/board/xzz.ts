@@ -1,3 +1,4 @@
+import { largestClosedContour } from "./contour.ts";
 import { desEcbDecrypt, XZZ_DES_KEY } from "./des.ts";
 import { MIL_PER_MM, type Board, type BoardPart, type BoardPin, type BoardPoint, type BoardSegment } from "./types.ts";
 
@@ -161,16 +162,16 @@ export function parseXzz(name: string, source: Uint8Array): Board {
       continue;
     }
     if (type === 1 && body.length >= 24) {
-      segments.push(
-        ...arcSegments(
+      const arc = arcSegments(
           mils(i32(body, 4)),
           mils(i32(body, 8)),
           Math.abs(mils(i32(body, 12))),
           mils(i32(body, 16)),
           mils(i32(body, 20)),
           body.length >= 32 ? nets.get(u32(body, 28)) : undefined,
-        ),
-      );
+        );
+      segments.push(...arc);
+      if (u32(body, 0) === 28) for (const segment of arc) outlinePoints.push({ x: segment.x1, y: segment.y1 }, { x: segment.x2, y: segment.y2 });
       continue;
     }
     if (type !== 7 || size < 16 || size % 8 !== 0) continue;
@@ -181,31 +182,14 @@ export function parseXzz(name: string, source: Uint8Array): Board {
     throw new Error("El .pcb no trae piezas. Puede ser una versión de XZZ que todavía no leo.");
   }
 
-  let minX = Infinity;
-  let minY = Infinity;
-  let maxX = -Infinity;
-  let maxY = -Infinity;
-  for (const point of outlinePoints) {
-    minX = Math.min(minX, point.x);
-    minY = Math.min(minY, point.y);
-    maxX = Math.max(maxX, point.x);
-    maxY = Math.max(maxY, point.y);
-  }
-  const outline =
-    Number.isFinite(minX) && maxX > minX && maxY > minY
-      ? [
-          { x: minX, y: minY },
-          { x: maxX, y: minY },
-          { x: maxX, y: maxY },
-          { x: minX, y: maxY },
-        ]
-      : [];
+  const outline = largestClosedContour(outlinePoints);
   const base = name.split(/[/\\]/).pop() ?? name;
   return {
     name: base.replace(/\.[^.]+$/, "") || base,
     format: "XZZ",
     unitsPerMm: MIL_PER_MM,
     outline,
+    outlineSegments: outlinePoints.filter((_, index) => index % 2 === 0).map((a, index) => { const b = outlinePoints[index * 2 + 1]; return { x1: a.x, y1: a.y, x2: b.x, y2: b.y }; }),
     segments,
     parts,
     pins,
