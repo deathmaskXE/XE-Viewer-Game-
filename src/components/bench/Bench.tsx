@@ -257,7 +257,7 @@ export function Bench() {
         multiple
         className="sr-only"
         aria-label="Abrir archivos"
-        accept=".kicad_pcb,.bin,.brd,.bvr,.bdv,.fz,.cad,.asc,.pcb,.gencad,.gcd,.csv,.txt,.json,.png,.jpg,.jpeg,.webp,.gif,.bmp,.svg,.pdf,.psd,.psb,image/*,application/pdf"
+        accept=".kicad_mod,.kicad_pcb,.bin,.brd,.bvr,.bdv,.fz,.cad,.asc,.pcb,.gencad,.gcd,.csv,.txt,.json,.png,.jpg,.jpeg,.webp,.gif,.bmp,.svg,.pdf,.psd,.psb,image/*,application/pdf"
         onChange={(event) => {
           const list = event.target.files;
           if (list?.length) void importFiles([...list]);
@@ -434,7 +434,7 @@ export function Bench() {
             <details className="mt-2 rounded-panel border border-border px-3 py-2 text-sm">
               <summary className="text-sm font-medium">Formatos y atajos</summary>
               <div className="mt-2 space-y-2 text-xs leading-relaxed text-muted">
-                <p>Placa: KiCad (.kicad_pcb), .bin con contenido compatible, .brd (con o sin cifra de OpenBoardView), BRD2, .bvr, .pcb de XinZhiZao, GenCAD, ASCII de Altium, CSV y JSON.</p>
+                <p>Placa: KiCad (.kicad_pcb y .kicad_mod), .bin con contenido compatible, .brd (con o sin cifra de OpenBoardView), BRD2, .bvr, .pcb de XinZhiZao, GenCAD, ASCII de Altium, CSV y JSON.</p>
                 <p>Una imagen abierta sola se muestra como documento. Si eliges una placa y una imagen juntas, la imagen se alinea como overlay. También abre PDF, SVG y Photoshop (.psd, .psb).</p>
                 <p>Abrir carpeta muestra sus imágenes y PDF como una galería, incluso dentro de subcarpetas. No requiere ZIP.</p>
                 <p>Toca una pista o un pin: toda esa red se marca en rojo. En un Photoshop, abre el panel de la derecha para ver y ocultar capas.</p>

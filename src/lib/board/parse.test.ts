@@ -187,3 +187,17 @@ test("KiCad supports old module references, quoted strings and curved boundaries
   assert.equal(board.pins[0].net, 'a"b');
   assert.ok(board.outline.length > 10);
 });
+
+test("standalone KiCad footprint retains pads and body graphics", async () => {
+  const source = `(footprint "USB_C" (layer "F.Cu")
+    (fp_text reference "REF**")
+    (fp_rect (start -5 -3) (end 5 3) (layer "F.SilkS"))
+    (pad "A1" smd rect (at -2 1) (size 1 1) (layers "F.Cu"))
+    (pad "A2" smd rect (at 2 1) (size 1 1) (layers "F.Cu")))`;
+  const board = await parseBoard("USB_C.kicad_mod", new TextEncoder().encode(source));
+  assert.equal(board.format, "KiCad huella");
+  assert.equal(board.parts.length, 1);
+  assert.equal(board.pins.length, 2);
+  assert.equal(board.pins[0].name, "A1");
+  assert.equal(board.segments.length, 4);
+});

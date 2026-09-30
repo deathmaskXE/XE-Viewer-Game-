@@ -34,9 +34,11 @@ function arcPoints(start: BoardPoint, mid: BoardPoint, end: BoardPoint): BoardPo
 }
 
 export function parseKicad(name: string, text: string): Board {
-  const root = readTree(text);
+  let root = readTree(text);
+  const standalone = root[0] === "footprint" || root[0] === "module";
+  if (standalone) root = ["kicad_pcb", root];
   if (root[0] !== "kicad_pcb") throw new Error("Abre la placa .kicad_pcb. Los esquemas y proyectos KiCad necesitan otro lector.");
-  const board: Board = { name: name.replace(/\.[^.]+$/, ""), format: "KiCad", unitsPerMm: MIL_PER_MM, parts: [], pins: [], nails: [], segments: [], outline: [], outlineSegments: [] };
+  const board: Board = { name: name.replace(/\.[^.]+$/, ""), format: standalone ? "KiCad huella" : "KiCad", unitsPerMm: MIL_PER_MM, parts: [], pins: [], nails: [], segments: [], outline: [], outlineSegments: [] };
   const nets = new Map(children(root, "net").map((node) => [str(node, 1), str(node, 2)]));
   const netName = (node: Node) => { const net = child(node, "net"); return str(net, 2) || nets.get(str(net, 1)) || (Number.isNaN(Number(str(net, 1))) ? str(net, 1) : ""); };
   const convert = (p: BoardPoint) => ({ x: p.x * MIL_PER_MM, y: -p.y * MIL_PER_MM });
@@ -45,7 +47,7 @@ export function parseKicad(name: string, text: string): Board {
   };
   const graphic = (node: Node, transform: (p: BoardPoint) => BoardPoint, copper = false) => {
     const kind = str(node, 0), boundary = str(child(node, "layer"), 1) === "Edge.Cuts";
-    if (!boundary && !copper) return;
+    if (!boundary && !copper && !standalone) return;
     const a = point(child(node, "start")), b = point(child(node, "end"));
     let points: BoardPoint[] = [];
     if (kind.endsWith("line") || kind === "segment") points = [a, b];

@@ -13,6 +13,7 @@ export class BoardParseError extends Error {
 const IMAGE_EXT = new Set(["png", "jpg", "jpeg", "webp", "gif", "bmp"]);
 const BOARD_EXT = new Set([
   "kicad_pcb",
+  "kicad_mod",
   "bin",
   "brd",
   "bvr",
@@ -915,7 +916,7 @@ function parseJson(name: string, text: string): Board {
 
 function parseText(name: string, text: string): Board {
   const sample = text.slice(0, 8000);
-  if (/^\s*\(kicad_pcb\b/.test(sample)) return parseKicad(name, text);
+  if (/^\s*\((?:kicad_pcb|footprint|module)\b/.test(sample)) return parseKicad(name, text);
   if (sample.trimStart().startsWith("{")) return parseJson(name, text);
   if (sample.includes("BVRAW_FORMAT_1") || sample.includes("<<Pin>>")) return parseBvr(name, text);
   if (sample.includes("BRDOUT:") && sample.includes("NETS:")) return parseBrd2(name, text);

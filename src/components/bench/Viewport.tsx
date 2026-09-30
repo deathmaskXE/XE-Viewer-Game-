@@ -254,6 +254,11 @@ export function Viewport({ board, projectId, overlays, urls, unitsPerMm, ref }: 
       ctx.globalAlpha = !netOn || hot ? 0.95 : 0.2;
       ctx.fillStyle = hot ? PAL.trace : pin.side === "bottom" ? PAL.pinBot : PAL.pin;
       ctx.fillRect(p.x - s / 2, p.y - s / 2, s, s);
+      if (live.format === "KiCad huella" && pin.name && cam.current.zoom * live.unitsPerMm > 12) {
+        ctx.font = `500 11px "IBM Plex Mono", monospace`;
+        ctx.textAlign = "left"; ctx.textBaseline = "bottom";
+        ctx.fillText(pin.name, p.x + s / 2 + 3, p.y - s / 2 - 2);
+      }
     }
     ctx.globalAlpha = 1;
 
