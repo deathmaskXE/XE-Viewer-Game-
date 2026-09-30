@@ -40,11 +40,15 @@ function sideLabel(side: Side): string {
 }
 
 export function Bench() {
+  const [rearOpen, setRearOpen] = useState(false);
+  const [boardCursor, setBoardCursor] = useState<{ x: number; y: number } | null>(null);
+
   const boot = useBench((state) => state.boot);
   const ready = useBench((state) => state.ready);
   const importing = useBench((state) => state.importing);
   const projects = useBench((state) => state.projects);
   const project = useActiveProject();
+  useEffect(() => { setBoardCursor(null); }, [project?.id]);
   const urls = useBench((state) => state.urls);
   const side = useBench((state) => state.side);
   const mirror = useBench((state) => state.mirror);
@@ -306,6 +310,7 @@ export function Bench() {
         </Button>
         {boardTools ? <>
         <Button variant="quiet" disabled={importing} onClick={() => compareRef.current?.click()}>Comparar diagrama</Button>
+        <Button variant={rearOpen ? "primary" : "quiet"} aria-pressed={rearOpen} onClick={() => setRearOpen(value => !value)}>Referencia trasera</Button>
         <div className="flex rounded-panel border border-border p-1">
           {(
             [
@@ -461,6 +466,8 @@ export function Bench() {
               ) : ready ? (
                 <Viewport
                   ref={viewRef}
+                  marker={rearOpen ? boardCursor : null}
+                  onCursor={setBoardCursor}
                   board={board}
                   projectId={project?.id ?? null}
                   overlays={project?.overlays ?? []}
@@ -470,6 +477,10 @@ export function Bench() {
               ) : (
                 <div className="flex flex-1 items-center justify-center text-sm text-muted">Abriendo la mesa…</div>
               )}
+              {rearOpen && board ? <section className="absolute right-2 top-2 z-20 flex h-[38%] min-h-32 w-[42%] min-w-28 flex-col overflow-hidden rounded-panel border border-border bg-bg-elevated shadow-lg">
+                <div className="flex items-center px-2 text-xs font-medium"><span className="min-w-0 flex-1">{side === "bottom" ? "Cara superior" : "Cara trasera"}</span><Button size="sm" aria-label="Cerrar referencia trasera" onClick={() => setRearOpen(false)}><X className="size-4" /></Button></div>
+                <Viewport board={board} projectId={project?.id ?? null} overlays={[]} urls={urls} unitsPerMm={project?.unitsPerMm ?? 39.37} viewSide={side === "bottom" ? "top" : "bottom"} viewMirror={side !== "bottom"} marker={boardCursor} onCursor={setBoardCursor} />
+              </section> : null}
               {!board && ready && !project?.folder && (project?.overlays.length ?? 0) === 0 && (project?.diagrams.length ?? 0) === 0 ? (
                 <div className="pointer-events-none absolute inset-0 flex items-center justify-center px-6 text-center">
                   <p className="max-w-sm text-sm text-muted">

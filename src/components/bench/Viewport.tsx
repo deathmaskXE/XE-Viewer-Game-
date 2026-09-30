@@ -19,6 +19,10 @@ type Props = {
   urls: Record<string, string>;
   unitsPerMm: number;
   ref?: Ref<ViewportHandle>;
+  viewSide?: ViewSide;
+  viewMirror?: boolean;
+  marker?: { x: number; y: number } | null;
+  onCursor?: (point: { x: number; y: number }) => void;
 };
 
 const PAL = {
@@ -39,7 +43,7 @@ const PAL = {
 
 type Cam = { x: number; y: number; zoom: number };
 
-export function Viewport({ board, projectId, overlays, urls, unitsPerMm, ref }: Props) {
+export function Viewport({ board, projectId, overlays, urls, unitsPerMm, ref, viewSide, viewMirror, marker, onCursor }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
   const cam = useRef<Cam>({ x: 0, y: 0, zoom: 1 });
@@ -55,8 +59,12 @@ export function Viewport({ board, projectId, overlays, urls, unitsPerMm, ref }: 
   const space = useRef(false);
   const pointers = useRef(new Map<number, { sx: number; sy: number }>());
 
-  const side = useBench((state) => state.side);
-  const mirror = useBench((state) => state.mirror);
+  const storedSide = useBench((state) => state.side);
+  const side = viewSide ?? storedSide;
+  const storedMirror = useBench((state) => state.mirror);
+  const mirror = viewMirror ?? storedMirror;
+  const markerRef = useRef(marker);
+  markerRef.current = marker;
   const tool = useBench((state) => state.tool);
   const selectedPart = useBench((state) => state.selectedPart);
   const selectedNail = useBench((state) => state.selectedNail);
@@ -195,6 +203,19 @@ export function Viewport({ board, projectId, overlays, urls, unitsPerMm, ref }: 
     if (!current.board || !current.prep) {
       drawOverlays(false);
       drawOverlays(true);
+    if (markerRef.current) {
+      const p = project(markerRef.current.x, markerRef.current.y);
+      ctx.save();
+      ctx.strokeStyle = PAL.hot;
+      ctx.lineWidth = 2;
+      ctx.setLineDash([]);
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, 10, 0, Math.PI * 2);
+      ctx.moveTo(p.x - 18, p.y); ctx.lineTo(p.x + 18, p.y);
+      ctx.moveTo(p.x, p.y - 18); ctx.lineTo(p.x, p.y + 18);
+      ctx.stroke(); ctx.restore();
+    }
+
       return;
     }
     const { board: live, prep: ready } = current;
@@ -339,6 +360,19 @@ export function Viewport({ board, projectId, overlays, urls, unitsPerMm, ref }: 
     }
 
     drawOverlays(true);
+    if (markerRef.current) {
+      const p = project(markerRef.current.x, markerRef.current.y);
+      ctx.save();
+      ctx.strokeStyle = PAL.hot;
+      ctx.lineWidth = 2;
+      ctx.setLineDash([]);
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, 10, 0, Math.PI * 2);
+      ctx.moveTo(p.x - 18, p.y); ctx.lineTo(p.x + 18, p.y);
+      ctx.moveTo(p.x, p.y - 18); ctx.lineTo(p.x, p.y + 18);
+      ctx.stroke(); ctx.restore();
+    }
+
 
     if (current.measureA) {
       const a = project(current.measureA.x, current.measureA.y);
@@ -503,7 +537,7 @@ export function Viewport({ board, projectId, overlays, urls, unitsPerMm, ref }: 
 
   useEffect(() => {
     requestDraw();
-  }, [board, overlays, side, mirror, tool, selectedPart, selectedNail, selectedNet, activeOverlayId, measureA, measureB, urls]);
+  }, [board, overlays, side, mirror, tool, selectedPart, selectedNail, selectedNet, activeOverlayId, measureA, measureB, urls, marker]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -626,6 +660,7 @@ export function Viewport({ board, projectId, overlays, urls, unitsPerMm, ref }: 
           const point = localPoint(event);
           pointers.current.set(event.pointerId, point);
           const world = unproject(point.sx, point.sy);
+          onCursor?.(world);
           setCursor(`${formatMm(world.x, unitsPerMm)} , ${formatMm(world.y, unitsPerMm)} mm`);
           if (latest.current.board && latest.current.prep && latest.current.tool !== "overlay") {
             const hit = pickAt(
