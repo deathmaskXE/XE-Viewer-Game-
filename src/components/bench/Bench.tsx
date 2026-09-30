@@ -760,7 +760,12 @@ export function Bench() {
         </aside>
       </div>
 
-      <nav className="grid grid-cols-3 border-t border-border lg:hidden">
+      {boardTools ? <div className="grid shrink-0 grid-cols-3 gap-2 border-t border-border bg-bg-elevated px-3 py-2 lg:hidden" aria-label="Controles táctiles de la placa">
+        <Button variant="quiet" aria-label="Alejar placa en celular" onClick={() => viewRef.current?.zoomBy(1 / 1.25)}><ZoomOut className="size-4" />Alejar</Button>
+        <Button variant="quiet" aria-label="Centrar placa en celular" onClick={() => viewRef.current?.fit()}><LocateFixed className="size-4" />Centrar</Button>
+        <Button variant="primary" aria-label="Acercar placa en celular" onClick={() => viewRef.current?.zoomBy(1.25)}><ZoomIn className="size-4" />Acercar</Button>
+      </div> : null}
+      <nav className="grid shrink-0 grid-cols-3 border-t border-border lg:hidden">
         <Button variant={filesOpen ? "primary" : "ghost"} onClick={() => openFiles()}>
           Placas
         </Button>
