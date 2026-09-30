@@ -3,7 +3,6 @@ import { Languages, LocateFixed, Minus, Plus, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PsdViewer } from "@/components/bench/PsdViewer";
 import { FittedImage } from "./FittedImage";
-import { TextOverlay } from "@/components/bench/TextOverlay";
 import type { TextRegion } from "@/lib/bench/translation";
 import { TranslationPanel } from "@/components/bench/TranslationPanel";
 
@@ -30,7 +29,6 @@ export function DiagramPane({
   const [pdfPages, setPdfPages] = useState(1);
   const [pdfError, setPdfError] = useState("");
   const [pdfImage, setPdfImage] = useState<string | null>(null);
-  const [imageSize, setImageSize] = useState({ width: 0, height: 0 });
   const drag = useRef<{ x: number; y: number; px: number; py: number } | null>(null);
   const imageArea = useRef<HTMLDivElement>(null);
 
@@ -51,7 +49,7 @@ export function DiagramPane({
     setTranslationOpen(false);
     setRegions([]);
     setPage(1);
-    setImageSize({ width: 0, height: 0 });
+    setDimensions({ width: 0, height: 0 });
   }, [diagram.id]);
 
   useEffect(() => {
@@ -95,16 +93,9 @@ export function DiagramPane({
           <X className="size-4" />
         </Button>
       </div>
-      {pdf ? <label className="flex items-center gap-2 border-b border-border px-3 py-1 text-xs">Página <input aria-label="Página del PDF" type="number" min={1} max={pdfPages} value={page} className="w-16 rounded border border-border bg-bg p-1" onChange={(event) => { setPage(Math.min(pdfPages, Math.max(1, Number(event.target.value) || 1))); setRegions([]); }} /> de {pdfPages}</label> : null}
+      {pdf ? <label className="flex items-center gap-2 border-b border-border px-3 py-1 text-xs">Página <input aria-label="Página del PDF" type="number" min={1} max={pdfPages} value={page} className="w-16 rounded border border-border bg-bg p-1" onChange={(event) => { setPage(Math.min(pdfPages, Math.max(1, Number(event.target.value) || 1))); setRegions([]); setZoom(1); setPan({ x: 0, y: 0 }); }} /> de {pdfPages}</label> : null}
       {photoshop ? (
         <PsdViewer url={url} regions={regions} dimensions={dimensions} zoom={zoom} onZoom={setZoom} pan={pan} onPan={setPan} />
-      ) : pdf ? (
-        <div className="relative min-h-0 flex-1 overflow-auto bg-bg p-3" ref={imageArea}>
-          {pdfImage ? <div className="relative mx-auto" style={{ width: `min(100%, ${dimensions.width || 1200}px)`, zoom }}>
-            <img src={pdfImage} alt={`${diagram.name}, página ${page}`} draggable={false} className="block w-full select-none" />
-            <TextOverlay regions={regions} {...dimensions} />
-          </div> : <p className="p-4 text-sm text-muted">{pdfError || "Preparando página…"}</p>}
-        </div>
       ) : (
         <div
           ref={imageArea}
@@ -125,7 +116,7 @@ export function DiagramPane({
           }}
           onPointerCancel={() => { drag.current = null; }}
         >
-          <FittedImage url={url} alt={diagram.name} zoom={zoom} pan={pan} regions={regions} dimensions={dimensions} />
+          {pdf && !pdfImage ? <p className="p-4 text-sm text-muted">{pdfError || "Preparando página…"}</p> : <FittedImage url={pdf ? pdfImage! : url} alt={pdf ? `${diagram.name}, página ${page}` : diagram.name} zoom={zoom} pan={pan} regions={regions} dimensions={dimensions} /> }
         </div>
       )}
       {translationOpen ? <TranslationPanel url={url} name={diagram.name} mime={diagram.mime} page={page} onPage={(value) => { setPage(value); setRegions([]); }} onOverlay={(next, width, height) => { setRegions(next); setDimensions({ width, height }); }} onClose={() => setTranslationOpen(false)} /> : null}
