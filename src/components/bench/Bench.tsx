@@ -448,7 +448,7 @@ export function Bench() {
         </aside>
 
         <div className="relative flex min-w-0 flex-1">
-          <div className={cn("grid min-h-0 min-w-0 flex-1", diagramOpen && diagramUrl && activeDiagram && "grid-cols-1 grid-rows-2 lg:grid-rows-1 lg:grid-cols-[minmax(0,1fr)_minmax(320px,38%)]")}>
+          <div className={cn("grid min-h-0 min-w-0 flex-1", diagramOpen && diagramUrl && activeDiagram && "xe-compare")}>
             <div className={cn("relative flex min-h-0 min-w-0", diagramOpen && diagramUrl && "min-h-0")}>
               {ready && project?.folder ? (
                 <FolderGallery

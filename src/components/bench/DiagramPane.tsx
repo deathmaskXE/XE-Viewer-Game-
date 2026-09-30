@@ -83,8 +83,8 @@ export function DiagramPane({
   }, [pdf, url, page]);
 
   return (
-    <section className="relative flex min-h-0 min-w-0 flex-col border-border bg-bg-elevated lg:border-l" onContextMenu={(event) => event.preventDefault()}>
-      <div className="flex h-12 shrink-0 items-center gap-2 border-b border-border px-3">
+    <section className="relative flex min-h-0 min-w-0 flex-col border-border bg-bg-elevated border-l" onContextMenu={(event) => event.preventDefault()}>
+      <div className="xe-diagram-toolbar flex shrink-0 items-center border-b border-border px-2">
         <h2 className="min-w-0 flex-1 truncate text-sm font-medium">{diagram.name}</h2>
         <Button size="sm" variant={translationOpen ? "primary" : "quiet"} aria-label="Traducir texto de la imagen" onClick={() => setTranslationOpen((value) => !value)}><Languages className="size-4" /><span className="hidden sm:inline">Traducir</span></Button>
         <Button size="icon" variant="ghost" aria-label="Alejar diagrama" onClick={() => setZoom((value) => Math.max(0.25, value / 1.25))}><Minus className="size-4" /></Button>

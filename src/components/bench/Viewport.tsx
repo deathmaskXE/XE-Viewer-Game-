@@ -22,18 +22,18 @@ type Props = {
 };
 
 const PAL = {
-  bg: "#08131c",
-  fill: "#122633",
-  outline: "#718f9e",
-  partTop: "#b8d2dd",
-  partBot: "#72b9cd",
-  pin: "#d9e8ed",
-  pinBot: "#80cbdc",
-  nail: "#4bdae9",
+  bg: "#edf5f8",
+  fill: "#e2edf2",
+  outline: "#4a788c",
+  partTop: "#244e65",
+  partBot: "#26788c",
+  pin: "#335d70",
+  pinBot: "#258096",
+  nail: "#008a9e",
   hot: "#ff3333",
-  net: "#51d8e9",
+  net: "#008b9f",
   trace: "#e23b3b",
-  text: "#dcebf0",
+  text: "#193b4c",
   dim: "rgba(176,216,229,0.28)",
 };
 
@@ -365,7 +365,7 @@ export function Viewport({ board, projectId, overlays, urls, unitsPerMm, ref }: 
         const my = (a.y + b.y) / 2 - 10;
         ctx.font = `500 12px "IBM Plex Sans", sans-serif`;
         const width = ctx.measureText(label).width + 12;
-        ctx.fillStyle = "#101f2b";
+        ctx.fillStyle = "#ffffff";
         ctx.fillRect(mx - width / 2, my - 14, width, 20);
         ctx.fillStyle = PAL.text;
         ctx.textAlign = "center";
