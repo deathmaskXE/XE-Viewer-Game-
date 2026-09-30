@@ -1,4 +1,5 @@
 import { MIL_PER_MM, type Board, type BoardNail, type BoardPart, type BoardPin, type Side } from "./types.ts";
+import { largestClosedContour } from "./contour.ts";
 import { looksLikeXzz, parseXzz } from "./xzz.ts";
 
 export class BoardParseError extends Error {
@@ -522,6 +523,8 @@ function parseGencad(name: string, text: string): Board {
     rot: number;
     side: Side;
     placed: boolean;
+    mirrorX: boolean;
+    mirrorY: boolean;
   };
   const drafts: Draft[] = [];
   const board = blank(stem(name), "GenCAD", unitsPerMm);
@@ -581,7 +584,10 @@ function parseGencad(name: string, text: string): Board {
         pendingPin = "";
       } else if (key === "PAD" || key === "PIN") {
         const padName = c.readStr();
-        const maybeX = c.readFloat();
+        // GenCAD PIN records include a padstack name before the coordinates.
+        const nextToken = c.readStr();
+        const numeric = nextToken !== "" && Number.isFinite(Number(nextToken));
+        const maybeX = numeric ? Number(nextToken) : c.readFloat();
         const maybeY = c.readFloat();
         if (padName && line.split(/\s+/).length >= 4) {
           const pads = shapes.get(shapeName) ?? [];
@@ -612,9 +618,16 @@ function parseGencad(name: string, text: string): Board {
           rot: 0,
           side: "top",
           placed: false,
+          mirrorX: false,
+          mirrorY: false,
         };
       } else if (current && key === "DEVICE") current.device = c.readStr();
-      else if (current && key === "SHAPE") current.shape = c.readStr();
+      else if (current && key === "SHAPE") {
+        current.shape = c.readStr();
+        const mirror = c.readStr().toUpperCase();
+        current.mirrorX = mirror === "MIRRORX";
+        current.mirrorY = mirror === "MIRRORY";
+      }
       else if (current && (key === "PLACE" || key === "LOC")) {
         current.x = c.readFloat();
         current.y = c.readFloat();
@@ -637,6 +650,7 @@ function parseGencad(name: string, text: string): Board {
   }
   if (current) drafts.push(current);
   board.unitsPerMm = unitsPerMm;
+  if (!board.outline.length) board.outline = largestClosedContour(board.segments.flatMap((edge) => [{ x: edge.x1, y: edge.y1 }, { x: edge.x2, y: edge.y2 }]));
 
   const indexByName = new Map<string, number>();
   for (const draft of drafts) {
@@ -668,7 +682,7 @@ function parseGencad(name: string, text: string): Board {
       continue;
     }
     for (const pad of pads) {
-      const local = rotatePad(pad.x, pad.y, draft.rot, draft.side === "bottom");
+      const local = rotatePad(draft.mirrorX ? -pad.x : pad.x, draft.mirrorY ? -pad.y : pad.y, draft.rot, false);
       board.pins.push({
         x: draft.x + local.x,
         y: draft.y + local.y,

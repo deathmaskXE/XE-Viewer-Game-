@@ -110,3 +110,45 @@ test("boundary stitching preserves a concave silhouette from unordered edges", (
   assert.ok(contour.some(p => p.x === 2 && p.y === 2));
   assert.equal(largestClosedContour([{x:0,y:0},{x:1,y:0}]).length, 0);
 });
+
+test("GenCAD padstack coordinates, rotation and mirror preserve component geometry", async () => {
+  const text = `$HEADER
+GENCAD 1.4
+UNITS USER 1000
+$ENDHEADER
+$BOARD
+LINE 0 0 1000 0
+LINE 1000 0 1000 800
+LINE 1000 800 0 800
+LINE 0 800 0 0
+$ENDBOARD
+$SHAPES
+SHAPE QFN
+PIN 1 PADSTACK_A -50 30 TOP 0 0
+PIN 2 PADSTACK_A 50 -30 TOP 0 0
+$ENDSHAPES
+$COMPONENTS
+COMPONENT U1
+PLACE 500 400
+LAYER TOP
+ROTATION 90
+SHAPE QFN 0 0
+COMPONENT U2
+PLACE 200 300
+LAYER BOTTOM
+ROTATION 90
+SHAPE QFN MIRRORY FLIP
+$ENDCOMPONENTS
+$SIGNALS
+SIGNAL VCC
+NODE U1 1
+$ENDSIGNALS`;
+  const board = await parseBoard("camcad.cad", new TextEncoder().encode(text));
+  assert.equal(board.outline.length, 4);
+  assert.equal(board.pins.length, 4);
+  assert.equal(board.pins[0].net, "VCC");
+  assert.ok(Math.abs(board.pins[0].x - 470) < 0.001);
+  assert.ok(Math.abs(board.pins[0].y - 350) < 0.001);
+  assert.ok(Math.abs(board.pins[2].x - 230) < 0.001);
+  assert.ok(Math.abs(board.pins[2].y - 250) < 0.001);
+});

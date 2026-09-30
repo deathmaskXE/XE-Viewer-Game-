@@ -21,6 +21,7 @@ import {
   ZoomOut,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { NexusViewer } from "@/components/bench/NexusViewer";
 import { DiagramPane } from "@/components/bench/DiagramPane";
 import { FolderGallery } from "@/components/bench/FolderGallery";
 import { TranslationPanel } from "@/components/bench/TranslationPanel";
@@ -93,6 +94,8 @@ export function Bench() {
   const viewRef = useRef<ViewportHandle>(null);
   const dragDepth = useRef(0);
   const [dragging, setDragging] = useState(false);
+  const [viewer, setViewer] = useState<"xe" | "nexus">("xe");
+  const [nexusOpened, setNexusOpened] = useState(false);
   const [readingFolder, setReadingFolder] = useState(false);
   const [editing, setEditing] = useState<string | null>(null);
   const [draftName, setDraftName] = useState("");
@@ -277,6 +280,12 @@ export function Bench() {
           event.target.value = "";
         }}
       />
+      <div className="flex shrink-0 items-center gap-2 border-b border-border bg-bg-elevated px-3 py-2" role="tablist" aria-label="Elegir visor">
+        <Button role="tab" aria-selected={viewer === "xe"} variant={viewer === "xe" ? "primary" : "ghost"} onClick={() => setViewer("xe")}>Visor XE</Button>
+        <Button role="tab" aria-selected={viewer === "nexus"} variant={viewer === "nexus" ? "primary" : "ghost"} onClick={() => { setNexusOpened(true); setViewer("nexus"); }}>NexusBV web</Button>
+      </div>
+      {nexusOpened ? <div className={viewer === "nexus" ? "flex min-h-0 flex-1 flex-col" : "hidden"}><NexusViewer /></div> : null}
+      <div className={viewer === "xe" ? "flex min-h-0 flex-1 flex-col" : "hidden"}>
       <header className="xe-header flex flex-wrap items-center gap-2 border-b border-border px-3 py-2">
         <div className="mr-2 flex min-w-0 items-center gap-2.5">
           <span className="xe-mark" aria-hidden="true">XE</span>
@@ -748,6 +757,7 @@ export function Bench() {
           Piezas
         </Button>
       </nav>
+      </div>
     </div>
   );
 }

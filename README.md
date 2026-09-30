@@ -34,3 +34,6 @@ El OCR se ejecuta en el navegador con Tesseract.js y descarga los datos del idio
 Los botones de giro cambian la orientación del boardview en pasos de 90°. El contorno corresponde a la placa y depende de las líneas incluidas en el archivo; no representa la carcasa completa del control o consola. Los PCB XZZ conservan sus bordes y curvas en vez de reemplazarlos por un rectángulo.
 
 Los `.bin` se reconocen por su contenido si usan un formato ya compatible (XZZ, BRD, BVR, JSON, etc.). Los BIN de firmware o de formatos propietarios desconocidos requieren otro lector y muestran un aviso.
+
+### NexusBV web
+La pestaña NexusBV carga https://web.nexusbv.net/ en una vista integrada. Depende de la disponibilidad y permisos de incrustación del sitio externo. Abrir aparte permite usarlo en otra pestaña si está bloqueado. Cada visor administra sus archivos de manera independiente; no se transfieren automáticamente archivos de XE a NexusBV. La pestaña conserva su sesión mientras alternas entre visores, hasta recargar la página.
