@@ -255,7 +255,8 @@ export function Viewport({ board, projectId, overlays, urls, unitsPerMm, ref, vi
       const bh = Math.abs(b.y - a.y);
       const selected = index === current.selectedPart;
       ctx.lineWidth = selected ? 2.5 : 1;
-      const componentColor = /^J\d/i.test(part.name) ? "#a8b2bd" : /^C\d/i.test(part.name) ? "#80502e" : /^R\d/i.test(part.name) ? "#101010" : /^(?:U|IC)\d/i.test(part.name) ? "#6b7280" : part.side === "bottom" ? PAL.partBot : PAL.partTop;
+      const isIc = /^(?:U|IC)(?:\d|[_. -]\d|$)/i.test(part.name) || /(?:^|[^a-z0-9])(?:BGA|QFN|QFP|TQFP|LQFP|SOIC|SOP|SSOP|TSSOP|WSON|DFN)(?:[^a-z]|$)/i.test(part.device ?? "");
+      const componentColor = /^J\d/i.test(part.name) ? "#a8b2bd" : /^C\d/i.test(part.name) ? "#80502e" : /^R\d/i.test(part.name) ? "#101010" : isIc ? "#808080" : part.side === "bottom" ? PAL.partBot : PAL.partTop;
       ctx.strokeStyle = selected ? "#008cff" : componentColor;
       ctx.globalAlpha = 1;
       if (/^J\d/i.test(part.name)) {
@@ -340,7 +341,7 @@ export function Viewport({ board, projectId, overlays, urls, unitsPerMm, ref, vi
         const b = project(segment.x2, segment.y2);
         ctx.moveTo(a.x, a.y);
         ctx.lineTo(b.x, b.y);
-        ctx.strokeStyle = segment.side === "top" ? "#ed2024" : segment.side === "bottom" ? "#00e5ff" : current.side === "bottom" ? "#00e5ff" : "#ff2024";
+        ctx.strokeStyle = segment.side === "top" ? "#ed2024" : segment.side === "bottom" ? "#ff8c00" : current.side === "bottom" ? "#ff8c00" : "#ff2024";
         ctx.globalAlpha = 1;
         ctx.stroke();
       }
