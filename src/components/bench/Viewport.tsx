@@ -499,6 +499,9 @@ export function Viewport({ board, projectId, overlays, urls, unitsPerMm, ref, vi
   const emitZoom = (fallback?: { x: number; y: number }) => {
     zoomSyncRef.current?.(cam.current.zoom, markerRef.current ?? fallback ?? unproject(size.current.w / 2, size.current.h / 2));
   };
+  const emitPan = () => {
+    zoomSyncRef.current?.(cam.current.zoom, unproject(size.current.w / 2, size.current.h / 2));
+  };
   useEffect(() => {
     if (!syncedZoom) return;
     cam.current.zoom = syncedZoom.zoom;
@@ -526,6 +529,8 @@ export function Viewport({ board, projectId, overlays, urls, unitsPerMm, ref, vi
       const mirrorOn = latest.current.mirror;
       cam.current.x += (mirrorOn ? dx : -dx) / cam.current.zoom;
       cam.current.y += dy / cam.current.zoom;
+      userMoved.current = true;
+      emitPan();
       requestDraw();
     },
   }));
@@ -791,6 +796,7 @@ export function Viewport({ board, projectId, overlays, urls, unitsPerMm, ref, vi
             const movedY = point.sy - active.lastY;
             cam.current.x -= (mirrorOn ? -movedX : movedX) / cam.current.zoom;
             cam.current.y += movedY / cam.current.zoom;
+            emitPan();
             requestDraw();
           }
           active.lastX = point.sx;
