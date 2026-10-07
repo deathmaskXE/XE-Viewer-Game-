@@ -39,7 +39,7 @@ const PAL = {
   nail: "#008a9e",
   hot: "#ffffff",
   net: "#008b9f",
-  trace: "#ffffff",
+  trace: "#00f5ff",
   text: "#193b4c",
   dim: "rgba(176,216,229,0.28)",
 };
@@ -324,8 +324,8 @@ export function Viewport({ board, projectId, overlays, urls, unitsPerMm, ref, vi
           ctx.lineTo(b.x, b.y);
           dots.push(a, b);
         }
-        ctx.strokeStyle = "#008cff";
-        ctx.shadowColor = "#008cff"; ctx.shadowBlur = 5;
+        ctx.strokeStyle = "#071e4a";
+        ctx.shadowColor = "#00f5ff"; ctx.shadowBlur = 8;
         ctx.lineWidth = 6; ctx.stroke();
         ctx.shadowBlur = 0;
         ctx.strokeStyle = PAL.trace;
@@ -358,8 +358,8 @@ export function Viewport({ board, projectId, overlays, urls, unitsPerMm, ref, vi
           const b = project(endpoint.x, endpoint.y);
           ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y);
         }
-        ctx.strokeStyle = "#008cff";
-        ctx.shadowColor = "#008cff"; ctx.shadowBlur = 5;
+        ctx.strokeStyle = "#071e4a";
+        ctx.shadowColor = "#00f5ff"; ctx.shadowBlur = 8;
         ctx.lineWidth = 5; ctx.stroke();
         ctx.shadowBlur = 0; ctx.strokeStyle = PAL.trace;
         ctx.lineWidth = 1.8; ctx.stroke();
