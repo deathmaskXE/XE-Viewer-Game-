@@ -116,3 +116,16 @@
   input, select, textarea { font-size: 16px; }
 }
 nav { padding-bottom: env(safe-area-inset-bottom); }
+
+/* Voluntary support card: cyan and silver frame, without flashing. */
+.xe-support-frame {
+  border: 2px solid #80ecf3;
+  box-shadow: 0 0 0 1px #e4e9ef, 0 0 14px #00dcea66, 0 0 25px #c8d2de55;
+  animation: xe-support-glow 3s ease-in-out infinite alternate;
+}
+@keyframes xe-support-glow {
+  to { border-color: #e5eaf0; box-shadow: 0 0 0 1px #63e5ef, 0 0 20px #00dcea88, 0 0 30px #d7dee966; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .xe-support-frame { animation: none; }
+}

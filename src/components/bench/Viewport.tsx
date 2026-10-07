@@ -282,41 +282,6 @@ export function Viewport({ board, projectId, overlays, urls, unitsPerMm, ref, vi
 
     const netOn = Boolean(current.selectedNet);
     const selectedGround = /(?:^|[^a-z0-9])(?:[adp]?gnd|ground|vss)(?:$|[^a-z0-9])/i.test(current.selectedNet ?? "");
-    for (let index = 0; index < live.pins.length; index++) {
-      const pin = live.pins[index];
-      if (!pin || !acceptsSide(pin.side, current.side)) continue;
-      const p = project(pin.x, pin.y);
-      if (p.x < -8 || p.y < -8 || p.x > w + 8 || p.y > h + 8) continue;
-      const hot = netOn && pin.net === current.selectedNet;
-      const s = Math.max(1.4, Math.min(14, 8 * cam.current.zoom));
-      ctx.globalAlpha = !netOn || hot ? 0.95 : 0.2;
-      ctx.fillStyle = hot ? (selectedGround ? "#000000" : PAL.trace) : pin.side === "bottom" ? PAL.pinBot : PAL.pin;
-      ctx.fillRect(p.x - s / 2, p.y - s / 2, s, s);
-      if (hot) { ctx.strokeStyle = selectedGround ? "#c7a77d" : "#008cff"; ctx.lineWidth = 5; ctx.strokeRect(p.x - s / 2, p.y - s / 2, s, s); }
-      if (live.format === "KiCad huella" && pin.name && cam.current.zoom * live.unitsPerMm > 12) {
-        ctx.font = `500 11px "IBM Plex Mono", monospace`;
-        ctx.textAlign = "left"; ctx.textBaseline = "bottom";
-        ctx.fillText(pin.name, p.x + s / 2 + 3, p.y - s / 2 - 2);
-      }
-    }
-    ctx.globalAlpha = 1;
-
-    live.nails.forEach((nail, index) => {
-      if (!acceptsSide(nail.side, current.side)) return;
-      const p = project(nail.x, nail.y);
-      const hot = index === current.selectedNail || (netOn && nail.net === current.selectedNet);
-      const r = hot ? 6 : 4;
-      ctx.beginPath();
-      ctx.moveTo(p.x, p.y - r);
-      ctx.lineTo(p.x + r, p.y);
-      ctx.lineTo(p.x, p.y + r);
-      ctx.lineTo(p.x - r, p.y);
-      ctx.closePath();
-      ctx.fillStyle = hot ? (selectedGround ? "#000000" : PAL.hot) : "#000000";
-      ctx.fill();
-      if (hot) { ctx.strokeStyle = selectedGround ? "#c7a77d" : "#008cff"; ctx.lineWidth = 5; ctx.stroke(); }
-    });
-
     if (live.outline.length > 1) {
       ctx.beginPath();
       live.outline.forEach((point, index) => {
@@ -401,6 +366,49 @@ export function Viewport({ board, projectId, overlays, urls, unitsPerMm, ref, vi
         ctx.restore();
       }
     }
+
+    for (let index = 0; index < live.pins.length; index++) {
+      const pin = live.pins[index];
+      if (!pin || !acceptsSide(pin.side, current.side)) continue;
+      const p = project(pin.x, pin.y);
+      if (p.x < -8 || p.y < -8 || p.x > w + 8 || p.y > h + 8) continue;
+      const hot = netOn && pin.net === current.selectedNet;
+      const s = Math.max(1.4, Math.min(14, 8 * cam.current.zoom));
+      ctx.globalAlpha = 1;
+      ctx.save();
+      ctx.shadowColor = "#ffffff"; ctx.shadowBlur = 6;
+      ctx.strokeStyle = hot ? (selectedGround ? "#c7a77d" : "#008cff") : "#f4fcff";
+      ctx.lineWidth = hot ? 3 : 1.5;
+      ctx.strokeRect(p.x - s / 2, p.y - s / 2, s, s);
+      ctx.shadowBlur = 0; ctx.fillStyle = "#000000";
+      ctx.fillRect(p.x - s / 2, p.y - s / 2, s, s);
+      ctx.restore();
+      if (live.format === "KiCad huella" && pin.name && cam.current.zoom * live.unitsPerMm > 12) {
+        ctx.font = `500 11px "IBM Plex Mono", monospace`;
+        ctx.textAlign = "left"; ctx.textBaseline = "bottom";
+        ctx.fillText(pin.name, p.x + s / 2 + 3, p.y - s / 2 - 2);
+      }
+    }
+    ctx.globalAlpha = 1;
+
+    live.nails.forEach((nail, index) => {
+      if (!acceptsSide(nail.side, current.side)) return;
+      const p = project(nail.x, nail.y);
+      const hot = index === current.selectedNail || (netOn && nail.net === current.selectedNet);
+      const r = hot ? 6 : 4;
+      ctx.beginPath();
+      ctx.moveTo(p.x, p.y - r);
+      ctx.lineTo(p.x + r, p.y);
+      ctx.lineTo(p.x, p.y + r);
+      ctx.lineTo(p.x - r, p.y);
+      ctx.closePath();
+      ctx.save();
+      ctx.shadowColor = "#ffffff"; ctx.shadowBlur = 6;
+      ctx.strokeStyle = hot ? (selectedGround ? "#c7a77d" : "#008cff") : "#f4fcff";
+      ctx.lineWidth = hot ? 3 : 1.5; ctx.stroke();
+      ctx.shadowBlur = 0; ctx.fillStyle = "#000000"; ctx.fill();
+      ctx.restore();
+    });
 
     if (live.outlineSegments?.length) {
       ctx.beginPath();
