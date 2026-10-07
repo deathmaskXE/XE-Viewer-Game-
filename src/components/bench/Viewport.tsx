@@ -250,13 +250,15 @@ export function Viewport({ board, projectId, overlays, urls, unitsPerMm, ref, vi
       ctx.lineWidth = selected ? 2.5 : 1;
       const componentColor = /^C\d/i.test(part.name) ? "#80502e" : /^R\d/i.test(part.name) ? "#101010" : /^(?:U|IC)\d/i.test(part.name) ? "#6b7280" : part.side === "bottom" ? PAL.partBot : PAL.partTop;
       ctx.strokeStyle = selected ? PAL.hot : componentColor;
-      ctx.globalAlpha = selected || !current.selectedNet ? 0.95 : 0.35;
+      ctx.globalAlpha = 1;
+      ctx.fillStyle = componentColor;
+      ctx.fillRect(left, top, bw, bh);
       ctx.setLineDash(part.side === "bottom" ? [3, 3] : []);
       ctx.strokeRect(left, top, bw, bh);
       ctx.setLineDash([]);
       if ((selected || (!underlay && bw > 36)) && bw > 18) {
         ctx.globalAlpha = selected ? 1 : 0.8;
-        ctx.fillStyle = selected ? PAL.hot : PAL.text;
+        ctx.fillStyle = selected ? PAL.hot : "#ffffff";
         ctx.font = `500 ${Math.max(10, Math.min(13, bw / 8))}px "IBM Plex Sans", sans-serif`;
         ctx.textAlign = "center";
         ctx.textBaseline = "middle";
@@ -323,12 +325,12 @@ export function Viewport({ board, projectId, overlays, urls, unitsPerMm, ref, vi
         const b = project(segment.x2, segment.y2);
         ctx.moveTo(a.x, a.y);
         ctx.lineTo(b.x, b.y);
-        ctx.strokeStyle = segment.side === "top" ? "#ed2024" : segment.side === "bottom" ? "#00cfe8" : PAL.outline;
-        ctx.globalAlpha = hotNet ? 0.4 : 1;
+        ctx.strokeStyle = segment.side === "top" ? "#ed2024" : segment.side === "bottom" ? "#00e5ff" : current.side === "bottom" ? "#00e5ff" : "#ff2024";
+        ctx.globalAlpha = 1;
         ctx.stroke();
       }
       ctx.globalAlpha = 1;
-        // Draw known copper faces distinctly; unknown layers stay neutral.
+        // Missing layer metadata uses the active face as a visual fallback.
 
       if (hotNet) {
         ctx.beginPath();
