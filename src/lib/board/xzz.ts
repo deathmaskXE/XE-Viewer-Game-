@@ -184,7 +184,7 @@ export function parseXzz(name: string, source: Uint8Array): Board {
 
   const outline = largestClosedContour(outlinePoints);
   const base = name.split(/[/\\]/).pop() ?? name;
-  return {
+  const board: Board = {
     name: base.replace(/\.[^.]+$/, "") || base,
     format: "XZZ",
     unitsPerMm: MIL_PER_MM,
@@ -195,6 +195,8 @@ export function parseXzz(name: string, source: Uint8Array): Board {
     pins,
     nails: [],
   };
+  separateXzzFaces(board);
+  return board;
 }
 
 function readPart(
@@ -266,4 +268,46 @@ function readPart(
     center: named ? { x: centerX, y: centerY } : undefined,
   });
   pins.push(...partPins);
+}
+
+/** Some XZZ exports place mirrored faces next to each other instead of tagging parts. */
+export function separateXzzFaces(board: Board): boolean {
+  const edges = board.outlineSegments ?? [];
+  if (edges.length < 8) return false;
+  const intervals = edges.map(e => [Math.min(e.x1,e.x2), Math.max(e.x1,e.x2)]).sort((a,b)=>a[0]-b[0]);
+  const groups: number[][] = [];
+  for (const interval of intervals) {
+    const last = groups.at(-1);
+    if (last && interval[0] <= last[1] + 0.01) last[1] = Math.max(last[1], interval[1]);
+    else groups.push([...interval]);
+  }
+  if (groups.length !== 2) return false;
+  const [left,right] = groups, width = left[1]-left[0], tolerance = Math.max(0.02,width*0.0001);
+  if (width <= 0 || Math.abs(right[1]-right[0]-width) > tolerance) return false;
+  const cut = (left[1]+right[0])/2, reflect = left[0]+right[1];
+  const points = edges.flatMap(e=>[{x:e.x1,y:e.y1},{x:e.x2,y:e.y2}]);
+  const front = points.filter(p=>p.x<cut), back = points.filter(p=>p.x>cut);
+  // Require matching mirrored silhouettes in both directions, not just two clusters.
+  const matches = (a: typeof points,b: typeof points) => a.every(p=>b.some(q=>Math.hypot(reflect-p.x-q.x,p.y-q.y)<=tolerance));
+  if (!front.length || !back.length || !matches(front,back) || !matches(back,front)) return false;
+  const partX = board.parts.map((part,i)=>part.center?.x ?? board.pins.find(p=>p.part===i)?.x);
+  if (!partX.some(x=>x!==undefined&&x<cut) || !partX.some(x=>x!==undefined&&x>cut)) return false;
+  board.parts.forEach((part,i)=>{
+    part.side = (partX[i] ?? left[0]) > cut ? "bottom" : "top";
+    if (part.side === "bottom") {
+      if (part.center) part.center.x = reflect-part.center.x;
+      if (part.rot !== undefined) part.rot = 180-part.rot;
+    }
+  });
+  for (const pin of board.pins) {
+    pin.side = pin.x > cut ? "bottom" : "top";
+    if (pin.side === "bottom") pin.x = reflect-pin.x;
+  }
+  for (const edge of board.segments) {
+    edge.side = (edge.x1+edge.x2)/2 > cut ? "bottom" : "top";
+    if (edge.side === "bottom") { edge.x1=reflect-edge.x1; edge.x2=reflect-edge.x2; }
+  }
+  board.outlineSegments = edges.filter(e=>(e.x1+e.x2)/2<cut);
+  board.outline = largestClosedContour(board.outlineSegments.flatMap(e=>[{x:e.x1,y:e.y1},{x:e.x2,y:e.y2}]));
+  return true;
 }

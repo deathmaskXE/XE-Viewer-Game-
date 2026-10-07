@@ -214,3 +214,18 @@ test("KiCad schematic renders embedded symbols, labels and wires safely", async 
   assert.ok(svg.includes('R1'));
   assert.ok(svg.includes('10,10 20,10'));
 });
+
+test("XZZ separates matching mirrored faces and preserves shared nets", async () => {
+  const { separateXzzFaces } = await import("./xzz.ts");
+  const polygon = [{x:0,y:0},{x:10,y:0},{x:8,y:7},{x:0,y:5}];
+  const front = polygon.map((p,i)=>({x1:p.x,y1:p.y,x2:polygon[(i+1)%4].x,y2:polygon[(i+1)%4].y}));
+  const back = front.map(e=>({...e,x1:30-e.x1,x2:30-e.x2}));
+  const board = {name:"test",format:"XZZ",unitsPerMm:1,outline:[],outlineSegments:[...front,...back],segments:[{x1:28,y1:2,x2:25,y2:3,net:"VCC"}],parts:[{name:"R1",side:"top" as const,kind:"smd" as const,center:{x:2,y:2}},{name:"C1",side:"top" as const,kind:"smd" as const,center:{x:28,y:2}}],pins:[{x:28,y:2,net:"VCC",part:1,side:"top" as const,name:"1"}],nails:[]};
+  assert.equal(separateXzzFaces(board),true);
+  assert.equal(board.parts[1].side,"bottom");
+  assert.equal(board.pins[0].x,2);
+  assert.equal(board.pins[0].net,"VCC");
+  assert.equal(board.segments[0].x2,5);
+  assert.equal(board.outlineSegments.length,4);
+  assert.equal(separateXzzFaces(board),false);
+});
