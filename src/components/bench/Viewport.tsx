@@ -19,6 +19,7 @@ type Props = {
   urls: Record<string, string>;
   unitsPerMm: number;
   ref?: Ref<ViewportHandle>;
+  strictFace?: boolean;
   viewSide?: ViewSide;
   viewMirror?: boolean;
   marker?: { x: number; y: number } | null;
@@ -28,7 +29,7 @@ type Props = {
 const PAL = {
   bg: "#edf5f8",
   fill: "#e2edf2",
-  outline: "#4a788c",
+  outline: "#000000",
   partTop: "#244e65",
   partBot: "#26788c",
   pin: "#335d70",
@@ -43,7 +44,7 @@ const PAL = {
 
 type Cam = { x: number; y: number; zoom: number };
 
-export function Viewport({ board, projectId, overlays, urls, unitsPerMm, ref, viewSide, viewMirror, marker, onCursor }: Props) {
+export function Viewport({ board, projectId, overlays, urls, unitsPerMm, ref, viewSide, viewMirror, marker, onCursor, strictFace = false }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
   const cam = useRef<Cam>({ x: 0, y: 0, zoom: 1 });
@@ -319,7 +320,7 @@ export function Viewport({ board, projectId, overlays, urls, unitsPerMm, ref, vi
       ctx.beginPath();
       for (const segment of live.segments) {
         if (hotNet && segment.net === hotNet) continue;
-        if (segment.side && !acceptsSide(segment.side, current.side)) continue;
+        if ((strictFace && !segment.side) || (segment.side && !acceptsSide(segment.side, current.side))) continue;
         ctx.beginPath();
         const a = project(segment.x1, segment.y1);
         const b = project(segment.x2, segment.y2);
@@ -336,7 +337,7 @@ export function Viewport({ board, projectId, overlays, urls, unitsPerMm, ref, vi
         ctx.beginPath();
         const dots: { x: number; y: number }[] = [];
         for (const segment of live.segments) {
-          if (segment.net !== hotNet || (segment.side && !acceptsSide(segment.side, current.side))) continue;
+          if ((strictFace && !segment.side) || segment.net !== hotNet || (segment.side && !acceptsSide(segment.side, current.side))) continue;
           const a = project(segment.x1, segment.y1);
           const b = project(segment.x2, segment.y2);
           ctx.moveTo(a.x, a.y);
@@ -363,7 +364,7 @@ export function Viewport({ board, projectId, overlays, urls, unitsPerMm, ref, vi
         const a = project(edge.x1, edge.y1), b = project(edge.x2, edge.y2);
         ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y);
       }
-      ctx.strokeStyle = PAL.nail;
+      ctx.strokeStyle = PAL.outline;
       ctx.lineWidth = 2;
       ctx.stroke();
     }
