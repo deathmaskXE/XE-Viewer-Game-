@@ -358,6 +358,28 @@ export function Viewport({ board, projectId, overlays, urls, unitsPerMm, ref, vi
       }
     }
 
+    // Connection guides are electrical links, never inferred copper routes.
+    if (hotNet && !live.segments.some(segment => segment.net === hotNet && (!segment.side || acceptsSide(segment.side, current.side)))) {
+      const endpoints = [...live.pins.filter(pin => pin.net === hotNet && acceptsSide(pin.side, current.side)), ...live.nails.filter(nail => nail.net === hotNet && acceptsSide(nail.side, current.side))];
+      const unique = [...new Map(endpoints.map(point => [`${point.x},${point.y}`, point])).values()];
+      const anchor = unique.find(point => "part" in point && point.part === current.selectedPart) ?? unique[0];
+      if (anchor && unique.length > 1) {
+        const a = project(anchor.x, anchor.y);
+        ctx.save();
+        ctx.strokeStyle = PAL.trace;
+        ctx.lineWidth = 1.8;
+        ctx.setLineDash([7, 4]);
+        ctx.beginPath();
+        for (const endpoint of unique) {
+          if (endpoint === anchor) continue;
+          const b = project(endpoint.x, endpoint.y);
+          ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y);
+        }
+        ctx.stroke();
+        ctx.restore();
+      }
+    }
+
     if (live.outlineSegments?.length) {
       ctx.beginPath();
       for (const edge of live.outlineSegments) {
