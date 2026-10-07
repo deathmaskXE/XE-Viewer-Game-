@@ -19,6 +19,8 @@ type Props = {
   urls: Record<string, string>;
   unitsPerMm: number;
   ref?: Ref<ViewportHandle>;
+  syncedZoom?: { zoom: number; x: number; y: number; token: number } | null;
+  onZoomSync?: (zoom: number, point: { x: number; y: number }) => void;
   strictFace?: boolean;
   viewSide?: ViewSide;
   viewMirror?: boolean;
@@ -44,7 +46,9 @@ const PAL = {
 
 type Cam = { x: number; y: number; zoom: number };
 
-export function Viewport({ board, projectId, overlays, urls, unitsPerMm, ref, viewSide, viewMirror, marker, onCursor, strictFace = false }: Props) {
+export function Viewport({ board, projectId, overlays, urls, unitsPerMm, ref, viewSide, viewMirror, marker, onCursor, strictFace = false, syncedZoom, onZoomSync }: Props) {
+  const zoomSyncRef = useRef(onZoomSync);
+  zoomSyncRef.current = onZoomSync;
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
   const cam = useRef<Cam>({ x: 0, y: 0, zoom: 1 });
@@ -381,7 +385,7 @@ export function Viewport({ board, projectId, overlays, urls, unitsPerMm, ref, vi
         ctx.save();
         ctx.strokeStyle = PAL.trace;
         ctx.lineWidth = 1.8;
-        ctx.setLineDash([7, 4]);
+        ctx.setLineDash([]);
         ctx.beginPath();
         for (const endpoint of unique) {
           if (endpoint === anchor) continue;
@@ -491,6 +495,18 @@ export function Viewport({ board, projectId, overlays, urls, unitsPerMm, ref, vi
     fitBox(latest.current.prep.bounds, 0.9, true);
   };
 
+  const emitZoom = (fallback?: { x: number; y: number }) => {
+    zoomSyncRef.current?.(cam.current.zoom, markerRef.current ?? fallback ?? unproject(size.current.w / 2, size.current.h / 2));
+  };
+  useEffect(() => {
+    if (!syncedZoom) return;
+    cam.current.zoom = syncedZoom.zoom;
+    cam.current.x = latest.current.mirror ? originX * 2 - syncedZoom.x : syncedZoom.x;
+    cam.current.y = syncedZoom.y;
+    userMoved.current = true;
+    publishHud(); requestDraw();
+  }, [syncedZoom]);
+
   useImperativeHandle(ref, () => ({
     fit,
     rotateBy: (degrees) => {
@@ -501,6 +517,7 @@ export function Viewport({ board, projectId, overlays, urls, unitsPerMm, ref, vi
     zoomBy: (factor) => {
       userMoved.current = true;
       cam.current.zoom = Math.min(800, Math.max(0.0002, cam.current.zoom * factor));
+      emitZoom();
       publishHud();
       requestDraw();
     },
@@ -611,6 +628,7 @@ export function Viewport({ board, projectId, overlays, urls, unitsPerMm, ref, vi
       const mirrored = current.mirror ? originX * 2 - before.x : before.x;
       cam.current.x = mirrored - (sx - size.current.w / 2) / cam.current.zoom;
       cam.current.y = before.y + (sy - size.current.h / 2) / cam.current.zoom;
+      emitZoom(before);
       publishHud();
       requestDraw();
     };
@@ -739,6 +757,7 @@ export function Viewport({ board, projectId, overlays, urls, unitsPerMm, ref, vi
             const prev = drag.current.sx || dist;
             if (prev > 0 && dist > 0) {
               cam.current.zoom = Math.min(800, Math.max(0.0002, cam.current.zoom * (dist / prev)));
+              emitZoom(unproject((a.sx + b.sx) / 2, (a.sy + b.sy) / 2));
               publishHud();
               requestDraw();
             }

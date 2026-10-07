@@ -40,7 +40,8 @@ function sideLabel(side: Side): string {
 }
 
 export function Bench() {
-  const [rearOpen, setRearOpen] = useState(true);
+  const [syncedZoom, setSyncedZoom] = useState<{ zoom: number; x: number; y: number; token: number } | null>(null);
+  const syncZoom = (zoom: number, point: { x: number; y: number }) => setSyncedZoom(previous => ({ zoom, ...point, token: (previous?.token ?? 0) + 1 }));
   const [boardCursor, setBoardCursor] = useState<{ x: number; y: number } | null>(null);
 
   const boot = useBench((state) => state.boot);
@@ -48,9 +49,10 @@ export function Bench() {
   const importing = useBench((state) => state.importing);
   const projects = useBench((state) => state.projects);
   const project = useActiveProject();
-  useEffect(() => { setBoardCursor(null); }, [project?.id]);
+  useEffect(() => { setBoardCursor(null); setSyncedZoom(null); }, [project?.id]);
   const urls = useBench((state) => state.urls);
   const side = useBench((state) => state.side);
+  const rearOpen = side === "both";
   const mirror = useBench((state) => state.mirror);
   const tool = useBench((state) => state.tool);
   const query = useBench((state) => state.query);
@@ -308,9 +310,16 @@ export function Bench() {
           <FolderPlus className="size-4" />
           {readingFolder ? "Leyendo carpeta…" : "Abrir carpeta"}
         </Button>
+        <Button variant="quiet" onClick={() => {
+          const width = Math.min(480, window.screen.availWidth);
+          const height = Math.min(720, window.screen.availHeight);
+          const left = Math.max(0, window.screenX + window.outerWidth - width - 24);
+          const top = Math.max(0, window.screenY + 60);
+          window.open("https://chatgpt.com/", "_blank", `popup=yes,width=${width},height=${height},left=${left},top=${top},resizable=yes,scrollbars=yes,noopener,noreferrer`);
+        }}>Consultar ChatGPT</Button>
         {boardTools ? <>
         <Button variant="quiet" disabled={importing} onClick={() => compareRef.current?.click()}>Comparar diagrama</Button>
-        <Button variant={rearOpen ? "primary" : "quiet"} aria-pressed={rearOpen} onClick={() => { if (side === "both") setSide("top"); setRearOpen(value => !value); }}>Dos caras</Button>
+        <Button variant={rearOpen ? "primary" : "quiet"} aria-pressed={rearOpen} onClick={() => setSide(rearOpen ? "top" : "both")}>Dos caras</Button>
         <div className="flex rounded-panel border border-border p-1">
           {(
             [
@@ -324,7 +333,7 @@ export function Bench() {
               size="sm"
               variant={side === value ? "primary" : "ghost"}
               aria-pressed={side === value}
-              onClick={() => { setSide(value); setRearOpen(value === "both"); }}
+              onClick={() => setSide(value)}
             >
               <span className="lg:hidden">{short}</span>
               <span className="hidden lg:inline">{long}</span>
@@ -468,6 +477,8 @@ export function Bench() {
                 {board && rearOpen ? <h2 className="border-b border-border px-3 py-2 text-sm font-medium">Frontal · rojo</h2> : null}
                 <Viewport
                   ref={viewRef}
+                  syncedZoom={rearOpen ? syncedZoom : null}
+                  onZoomSync={rearOpen ? syncZoom : undefined}
                   viewSide={rearOpen && board ? "top" : undefined}
                   viewMirror={rearOpen && board ? false : undefined}
                   marker={rearOpen ? boardCursor : null}
@@ -484,7 +495,7 @@ export function Bench() {
               )}
               {rearOpen && board ? <section className="flex min-w-0 flex-1 flex-col border-l border-border bg-bg-elevated">
                 <h2 className="border-b border-border px-3 py-2 text-sm font-medium">Inferior · cyan</h2>
-                {board.parts.some(part => part.side === "top") && board.parts.some(part => part.side === "bottom") ? <Viewport strictFace board={board} projectId={project?.id ?? null} overlays={[]} urls={urls} unitsPerMm={project?.unitsPerMm ?? 39.37} viewSide="bottom" viewMirror={true} marker={boardCursor} onCursor={setBoardCursor} /> : <p className="overflow-auto p-3 text-xs text-muted">Este lector no recuperó los datos de la cara inferior. La vista frontal no se duplica aquí.</p>}
+                {board.parts.some(part => part.side === "top") && board.parts.some(part => part.side === "bottom") ? <Viewport syncedZoom={syncedZoom} onZoomSync={syncZoom} strictFace board={board} projectId={project?.id ?? null} overlays={[]} urls={urls} unitsPerMm={project?.unitsPerMm ?? 39.37} viewSide="bottom" viewMirror={true} marker={boardCursor} onCursor={setBoardCursor} /> : <p className="overflow-auto p-3 text-xs text-muted">Este lector no recuperó los datos de la cara inferior. La vista frontal no se duplica aquí.</p>}
               </section> : null}
               {!board && ready && !project?.folder && (project?.overlays.length ?? 0) === 0 && (project?.diagrams.length ?? 0) === 0 ? (
                 <div className="pointer-events-none absolute inset-0 flex items-center justify-center px-6 text-center">
@@ -765,6 +776,11 @@ export function Bench() {
         </aside>
       </div>
 
+      {boardTools ? <div className="grid shrink-0 grid-cols-3 gap-2 border-t border-border bg-bg-elevated px-3 py-2 lg:hidden" aria-label="Elegir cara de la placa">
+        <Button variant={side === "top" ? "primary" : "quiet"} aria-pressed={side === "top"} onClick={() => setSide("top")}>Sup</Button>
+        <Button variant={side === "bottom" ? "primary" : "quiet"} aria-pressed={side === "bottom"} onClick={() => setSide("bottom")}>Inf</Button>
+        <Button variant={side === "both" ? "primary" : "quiet"} aria-pressed={side === "both"} onClick={() => setSide(side === "both" ? "top" : "both")}>Dos caras</Button>
+      </div> : null}
       {boardTools ? <div className="grid shrink-0 grid-cols-3 gap-2 border-t border-border bg-bg-elevated px-3 py-2 lg:hidden" aria-label="Controles táctiles de la placa">
         <Button variant="quiet" aria-label="Alejar placa en celular" onClick={() => viewRef.current?.zoomBy(1 / 1.25)}><ZoomOut className="size-4" />Alejar</Button>
         <Button variant="quiet" aria-label="Centrar placa en celular" onClick={() => viewRef.current?.fit()}><LocateFixed className="size-4" />Centrar</Button>
