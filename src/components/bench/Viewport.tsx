@@ -269,6 +269,7 @@ export function Viewport({ board, projectId, overlays, urls, unitsPerMm, ref, vi
     });
 
     const netOn = Boolean(current.selectedNet);
+    const selectedGround = /(?:^|[^a-z0-9])(?:[adp]?gnd|ground|vss)(?:$|[^a-z0-9])/i.test(current.selectedNet ?? "");
     for (let index = 0; index < live.pins.length; index++) {
       const pin = live.pins[index];
       if (!pin || !acceptsSide(pin.side, current.side)) continue;
@@ -277,9 +278,9 @@ export function Viewport({ board, projectId, overlays, urls, unitsPerMm, ref, vi
       const hot = netOn && pin.net === current.selectedNet;
       const s = Math.max(1.4, Math.min(14, 8 * cam.current.zoom));
       ctx.globalAlpha = !netOn || hot ? 0.95 : 0.2;
-      ctx.fillStyle = hot ? PAL.trace : pin.side === "bottom" ? PAL.pinBot : PAL.pin;
+      ctx.fillStyle = hot ? (selectedGround ? "#000000" : PAL.trace) : pin.side === "bottom" ? PAL.pinBot : PAL.pin;
       ctx.fillRect(p.x - s / 2, p.y - s / 2, s, s);
-      if (hot) { ctx.strokeStyle = "#008cff"; ctx.lineWidth = 2; ctx.strokeRect(p.x - s / 2, p.y - s / 2, s, s); }
+      if (hot) { ctx.strokeStyle = selectedGround ? "#c7a77d" : "#008cff"; ctx.lineWidth = 2; ctx.strokeRect(p.x - s / 2, p.y - s / 2, s, s); }
       if (live.format === "KiCad huella" && pin.name && cam.current.zoom * live.unitsPerMm > 12) {
         ctx.font = `500 11px "IBM Plex Mono", monospace`;
         ctx.textAlign = "left"; ctx.textBaseline = "bottom";
@@ -299,8 +300,9 @@ export function Viewport({ board, projectId, overlays, urls, unitsPerMm, ref, vi
       ctx.lineTo(p.x, p.y + r);
       ctx.lineTo(p.x - r, p.y);
       ctx.closePath();
-      ctx.fillStyle = hot ? PAL.hot : "#000000";
+      ctx.fillStyle = hot ? (selectedGround ? "#000000" : PAL.hot) : "#000000";
       ctx.fill();
+      if (hot) { ctx.strokeStyle = selectedGround ? "#c7a77d" : "#008cff"; ctx.lineWidth = 2; ctx.stroke(); }
     });
 
     if (live.outline.length > 1) {
@@ -334,7 +336,7 @@ export function Viewport({ board, projectId, overlays, urls, unitsPerMm, ref, vi
       ctx.globalAlpha = 1;
         // Missing layer metadata uses the active face as a visual fallback.
 
-      if (hotNet) {
+      if (hotNet && !selectedGround) {
         ctx.beginPath();
         const dots: { x: number; y: number }[] = [];
         for (const segment of live.segments) {
@@ -363,7 +365,7 @@ export function Viewport({ board, projectId, overlays, urls, unitsPerMm, ref, vi
     }
 
     // Connection guides are electrical links, never inferred copper routes.
-    if (hotNet && !live.segments.some(segment => segment.net === hotNet && (!segment.side || acceptsSide(segment.side, current.side)))) {
+    if (hotNet && !selectedGround && !live.segments.some(segment => segment.net === hotNet && (!segment.side || acceptsSide(segment.side, current.side)))) {
       const endpoints = [...live.pins.filter(pin => pin.net === hotNet && acceptsSide(pin.side, current.side)), ...live.nails.filter(nail => nail.net === hotNet && acceptsSide(nail.side, current.side))];
       const unique = [...new Map(endpoints.map(point => [`${point.x},${point.y}`, point])).values()];
       const anchor = unique.find(point => "part" in point && point.part === current.selectedPart) ?? unique[0];
