@@ -319,6 +319,46 @@ export function Bench() {
           const top = Math.max(0, window.screenY + 60);
           window.open("https://chatgpt.com/", "_blank", `popup=yes,width=${width},height=${height},left=${left},top=${top},resizable=yes,scrollbars=yes,noopener,noreferrer`);
         }}>Consultar ChatGPT</Button>
+        <details className="relative shrink-0 lg:hidden" onToggle={event => {
+          if (!event.currentTarget.open || !("speechSynthesis" in window)) return;
+          const thanks = new SpeechSynthesisUtterance("Gracias por apoyar XE Game Viewer");
+          thanks.lang = "es-MX"; thanks.rate = 0.95; thanks.volume = 0.65;
+          window.speechSynthesis.speak(thanks);
+        }}>
+          <summary className="xe-support-callout cursor-pointer rounded-control border border-border px-3 py-2 text-sm font-semibold text-fg">♡ Apoya el proyecto</summary>
+          <div className="absolute left-0 top-full z-50 mt-3 w-[min(22rem,calc(100vw-1.5rem))] rounded-panel border border-border xe-support-frame max-h-[75dvh] overflow-y-auto bg-bg-elevated p-3 shadow-xl">
+            <div className="mb-3 flex items-center gap-3">
+              <svg width="58" height="58" viewBox="0 0 58 58" role="img" aria-label="XE: proyectos para la comunidad">
+                <defs><linearGradient id="xe-support-gradient-mobile" x2="1" y2="1"><stop stopColor="#f5f7fa"/><stop offset="1" stopColor="#00dcea"/></linearGradient></defs>
+                <rect x="1" y="1" width="56" height="56" rx="15" fill="url(#xe-support-gradient-mobile)" stroke="#00b7ca"/>
+                <text x="29" y="35" textAnchor="middle" fontSize="23" fontWeight="700" fill="#153c48">XE</text>
+              </svg>
+              <h2 className="text-base font-semibold text-fg">¿Te gusta XE Game Viewer?</h2>
+            </div>
+            <p className="text-sm text-muted">Tu apoyo me ayuda a seguir mejorando el visor y creando proyectos para la comunidad. No es obligatorio: cualquier aportación suma.</p>
+            <details className="mt-4">
+              <summary className="cursor-pointer rounded-control border border-border px-4 py-3 text-center text-sm font-semibold text-fg">Ver formas de apoyar</summary>
+            <a href="https://paypal.me/XboxElEscondite" target="_blank" rel="noopener noreferrer" className="mt-4 flex min-h-11 items-center justify-center rounded-control border border-border bg-accent px-4 py-3 font-semibold text-black">Apoyar con PayPal ↗</a>
+            <div className="mt-4 space-y-3 border-t border-border pt-3">
+              <h3 className="text-sm font-semibold text-fg">Transferencia bancaria</h3>
+              {[
+                { bank: "Mercado Pago", clabe: "722969020089368829", name: "Irving Daniel Sánchez Nava" },
+                { bank: "Banorte", clabe: "072580010893628522", name: "Irving Daniel Sánchez" },
+              ].map(account => <div key={account.bank} className="text-sm">
+                <p className="font-semibold text-fg">{account.bank}</p>
+                <p className="text-xs text-muted">{account.name}</p>
+                <p className="mt-1 break-all font-mono text-fg">{account.clabe}</p>
+                <Button className="mt-1" size="sm" variant="quiet" onClick={async (event) => {
+                  const button = event.currentTarget;
+                  try { await navigator.clipboard.writeText(account.clabe); button.textContent = "CLABE copiada ✓"; }
+                  catch { button.textContent = "Selecciona la CLABE para copiar"; }
+                }}>Copiar CLABE</Button>
+              </div>)}
+            </div>
+            </details>
+            <p className="mt-3 text-xs text-muted">El importe lo eliges tú. Puedes usar PayPal o transferencia. Verifica el beneficiario antes de confirmar. ¡Gracias por apoyar mi trabajo!</p>
+          </div>
+        </details>
         {boardTools ? <>
         <Button variant="quiet" disabled={importing} onClick={() => compareRef.current?.click()}>Comparar diagrama</Button>
         <Button variant={rearOpen ? "primary" : "quiet"} aria-pressed={rearOpen} onClick={() => setSide(rearOpen ? "top" : "both")}>Dos caras</Button>
@@ -379,7 +419,7 @@ export function Bench() {
 
       <div className="relative flex min-h-0 flex-1">
         <aside className={cn(sheetClass(filesOpen), "xe-sidebar lg:w-60 lg:border-r lg:border-border")}>
-        <details className="mx-3 my-3 shrink-0" onToggle={event => {
+        <details className="mx-3 my-3 hidden shrink-0 lg:block" onToggle={event => {
           if (!event.currentTarget.open || !("speechSynthesis" in window)) return;
           const thanks = new SpeechSynthesisUtterance("Gracias por apoyar XE Game Viewer");
           thanks.lang = "es-MX"; thanks.rate = 0.95; thanks.volume = 0.65;
