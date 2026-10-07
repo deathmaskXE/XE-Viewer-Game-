@@ -445,7 +445,7 @@ export function Bench() {
                 <p>Placa: KiCad (.kicad_pcb y .kicad_mod), .bin con contenido compatible, .brd (con o sin cifra de OpenBoardView), BRD2, .bvr, .pcb de XinZhiZao, GenCAD, ASCII de Altium, CSV y JSON.</p>
                 <p>Una imagen abierta sola se muestra como documento. Si eliges una placa y una imagen juntas, la imagen se alinea como overlay. También abre PDF, SVG y Photoshop (.psd, .psb).</p>
                 <p>Abrir carpeta muestra sus imágenes y PDF como una galería, incluso dentro de subcarpetas. No requiere ZIP.</p>
-                <p>Toca una pista o un pin: toda esa red se marca en rojo. En un Photoshop, abre el panel de la derecha para ver y ocultar capas.</p>
+                <p>Toca una pista o un pin: toda esa red se marca en verde fosforescente. En un Photoshop, abre el panel de la derecha para ver y ocultar capas.</p>
                 <p>Rueda zoom. Arrastrar mueve. F encuadra. 1 2 3 cambian de cara. M espejo. N navegar, V mover overlay, C medir. / buscar.</p>
               </div>
             </details>

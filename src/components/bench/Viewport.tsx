@@ -34,9 +34,9 @@ const PAL = {
   pin: "#335d70",
   pinBot: "#258096",
   nail: "#008a9e",
-  hot: "#ff3333",
+  hot: "#39ff14",
   net: "#008b9f",
-  trace: "#e23b3b",
+  trace: "#39ff14",
   text: "#193b4c",
   dim: "rgba(176,216,229,0.28)",
 };
@@ -248,7 +248,8 @@ export function Viewport({ board, projectId, overlays, urls, unitsPerMm, ref, vi
       const bh = Math.abs(b.y - a.y);
       const selected = index === current.selectedPart;
       ctx.lineWidth = selected ? 2.5 : 1;
-      ctx.strokeStyle = selected ? PAL.hot : part.side === "bottom" ? PAL.partBot : PAL.partTop;
+      const componentColor = /^C\d/i.test(part.name) ? "#80502e" : /^R\d/i.test(part.name) ? "#101010" : /^(?:U|IC)\d/i.test(part.name) ? "#6b7280" : part.side === "bottom" ? PAL.partBot : PAL.partTop;
+      ctx.strokeStyle = selected ? PAL.hot : componentColor;
       ctx.globalAlpha = selected || !current.selectedNet ? 0.95 : 0.35;
       ctx.setLineDash(part.side === "bottom" ? [3, 3] : []);
       ctx.strokeRect(left, top, bw, bh);
@@ -316,18 +317,24 @@ export function Viewport({ board, projectId, overlays, urls, unitsPerMm, ref, vi
       ctx.beginPath();
       for (const segment of live.segments) {
         if (hotNet && segment.net === hotNet) continue;
+        if (segment.side && !acceptsSide(segment.side, current.side)) continue;
+        ctx.beginPath();
         const a = project(segment.x1, segment.y1);
         const b = project(segment.x2, segment.y2);
         ctx.moveTo(a.x, a.y);
         ctx.lineTo(b.x, b.y);
+        ctx.strokeStyle = segment.side === "top" ? "#ed2024" : segment.side === "bottom" ? "#00cfe8" : PAL.outline;
+        ctx.globalAlpha = hotNet ? 0.4 : 1;
+        ctx.stroke();
       }
-      ctx.strokeStyle = hotNet ? "rgba(90,185,208,0.35)" : PAL.outline;
-      ctx.stroke();
+      ctx.globalAlpha = 1;
+        // Draw known copper faces distinctly; unknown layers stay neutral.
+
       if (hotNet) {
         ctx.beginPath();
         const dots: { x: number; y: number }[] = [];
         for (const segment of live.segments) {
-          if (segment.net !== hotNet) continue;
+          if (segment.net !== hotNet || (segment.side && !acceptsSide(segment.side, current.side))) continue;
           const a = project(segment.x1, segment.y1);
           const b = project(segment.x2, segment.y2);
           ctx.moveTo(a.x, a.y);

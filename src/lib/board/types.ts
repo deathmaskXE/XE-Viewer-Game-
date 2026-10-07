@@ -37,6 +37,8 @@ export type BoardSegment = {
   y1: number;
   x2: number;
   y2: number;
+  /** Copper face, when provided by the source. */
+  side?: Side;
   /** Net this copper belongs to, when the file says so. */
   net?: string;
 };

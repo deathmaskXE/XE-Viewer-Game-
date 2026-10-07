@@ -42,8 +42,8 @@ export function parseKicad(name: string, text: string): Board {
   const nets = new Map(children(root, "net").map((node) => [str(node, 1), str(node, 2)]));
   const netName = (node: Node) => { const net = child(node, "net"); return str(net, 2) || nets.get(str(net, 1)) || (Number.isNaN(Number(str(net, 1))) ? str(net, 1) : ""); };
   const convert = (p: BoardPoint) => ({ x: p.x * MIL_PER_MM, y: -p.y * MIL_PER_MM });
-  const edges = (points: BoardPoint[], transform: (p: BoardPoint) => BoardPoint, boundary: boolean, net?: string) => {
-    for (let i = 1; i < points.length; i++) { const a = convert(transform(points[i - 1])), b = convert(transform(points[i])); const edge = { x1: a.x, y1: a.y, x2: b.x, y2: b.y, net }; board.segments.push(edge); if (boundary) board.outlineSegments!.push(edge); }
+  const edges = (points: BoardPoint[], transform: (p: BoardPoint) => BoardPoint, boundary: boolean, net?: string, side?: Side) => {
+    for (let i = 1; i < points.length; i++) { const a = convert(transform(points[i - 1])), b = convert(transform(points[i])); const edge = { x1: a.x, y1: a.y, x2: b.x, y2: b.y, net, side }; board.segments.push(edge); if (boundary) board.outlineSegments!.push(edge); }
   };
   const graphic = (node: Node, transform: (p: BoardPoint) => BoardPoint, copper = false) => {
     const kind = str(node, 0), boundary = str(child(node, "layer"), 1) === "Edge.Cuts";
@@ -59,7 +59,8 @@ export function parseKicad(name: string, text: string): Board {
       if (mid.length) points = arcPoints(a, point(mid), b);
       else { const sweep = number(child(node,"angle"),1)*Math.PI/180; const r=Math.hypot(b.x-a.x,b.y-a.y), start=Math.atan2(b.y-a.y,b.x-a.x); const count=Math.max(4,Math.ceil(Math.abs(sweep)/(Math.PI/36))); points=Array.from({length:count+1},(_,i)=>({x:a.x+r*Math.cos(start+sweep*i/count),y:a.y+r*Math.sin(start+sweep*i/count)})); }
     }
-    edges(points, transform, boundary, copper ? netName(node) : undefined);
+    const layer = str(child(node, "layer"), 1);
+    edges(points, transform, boundary, copper ? netName(node) : undefined, copper ? (layer === "F.Cu" ? "top" : layer === "B.Cu" ? "bottom" : "both") : undefined);
   };
   for (const footprint of [...children(root, "footprint"), ...children(root, "module")]) {
     const at = child(footprint, "at"), origin = point(at), angle = -number(at, 3)*Math.PI/180;
