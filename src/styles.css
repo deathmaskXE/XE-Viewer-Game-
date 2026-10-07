@@ -177,3 +177,18 @@ nav { padding-bottom: env(safe-area-inset-bottom); }
 @media (max-width: 420px) {
   .xe-viewer-tab { flex: 1; min-width: 0; padding: 12px 10px; }
 }
+
+.xe-support-callout {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 78px;
+  padding: 16px 10px;
+  text-align: center;
+  font-size: 21px;
+  font-weight: 900;
+  line-height: 1.25;
+  border-width: 3px;
+  text-shadow: 0 1px 0 #fff, 0 2px 1px #8eaab6;
+  box-shadow: 0 0 10px #00cfe5, 0 0 24px #00dcea99;
+}

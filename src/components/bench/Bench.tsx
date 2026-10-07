@@ -379,7 +379,12 @@ export function Bench() {
 
       <div className="relative flex min-h-0 flex-1">
         <aside className={cn(sheetClass(filesOpen), "xe-sidebar lg:w-60 lg:border-r lg:border-border")}>
-        <details className="mx-3 my-3 shrink-0">
+        <details className="mx-3 my-3 shrink-0" onToggle={event => {
+          if (!event.currentTarget.open || !("speechSynthesis" in window)) return;
+          const thanks = new SpeechSynthesisUtterance("Gracias por apoyar XE Game Viewer");
+          thanks.lang = "es-MX"; thanks.rate = 0.95; thanks.volume = 0.65;
+          window.speechSynthesis.speak(thanks);
+        }}>
           <summary className="xe-support-callout cursor-pointer rounded-control border border-border px-3 py-2 text-sm font-semibold text-fg">♡ Apoya el proyecto</summary>
           <div className="mt-3 w-full rounded-panel border border-border xe-support-frame max-h-[75dvh] overflow-y-auto bg-bg-elevated p-3 shadow-xl">
             <div className="mb-3 flex items-center gap-3">
