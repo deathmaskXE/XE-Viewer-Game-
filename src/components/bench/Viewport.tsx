@@ -32,12 +32,12 @@ const PAL = {
   outline: "#000000",
   partTop: "#244e65",
   partBot: "#26788c",
-  pin: "#335d70",
-  pinBot: "#258096",
+  pin: "#000000",
+  pinBot: "#000000",
   nail: "#008a9e",
-  hot: "#39ff14",
+  hot: "#ffffff",
   net: "#008b9f",
-  trace: "#39ff14",
+  trace: "#ffffff",
   text: "#193b4c",
   dim: "rgba(176,216,229,0.28)",
 };
@@ -250,7 +250,7 @@ export function Viewport({ board, projectId, overlays, urls, unitsPerMm, ref, vi
       const selected = index === current.selectedPart;
       ctx.lineWidth = selected ? 2.5 : 1;
       const componentColor = /^C\d/i.test(part.name) ? "#80502e" : /^R\d/i.test(part.name) ? "#101010" : /^(?:U|IC)\d/i.test(part.name) ? "#6b7280" : part.side === "bottom" ? PAL.partBot : PAL.partTop;
-      ctx.strokeStyle = selected ? PAL.hot : componentColor;
+      ctx.strokeStyle = selected ? "#008cff" : componentColor;
       ctx.globalAlpha = 1;
       ctx.fillStyle = componentColor;
       ctx.fillRect(left, top, bw, bh);
@@ -279,6 +279,7 @@ export function Viewport({ board, projectId, overlays, urls, unitsPerMm, ref, vi
       ctx.globalAlpha = !netOn || hot ? 0.95 : 0.2;
       ctx.fillStyle = hot ? PAL.trace : pin.side === "bottom" ? PAL.pinBot : PAL.pin;
       ctx.fillRect(p.x - s / 2, p.y - s / 2, s, s);
+      if (hot) { ctx.strokeStyle = "#008cff"; ctx.lineWidth = 2; ctx.strokeRect(p.x - s / 2, p.y - s / 2, s, s); }
       if (live.format === "KiCad huella" && pin.name && cam.current.zoom * live.unitsPerMm > 12) {
         ctx.font = `500 11px "IBM Plex Mono", monospace`;
         ctx.textAlign = "left"; ctx.textBaseline = "bottom";
@@ -298,7 +299,7 @@ export function Viewport({ board, projectId, overlays, urls, unitsPerMm, ref, vi
       ctx.lineTo(p.x, p.y + r);
       ctx.lineTo(p.x - r, p.y);
       ctx.closePath();
-      ctx.fillStyle = hot ? PAL.hot : PAL.nail;
+      ctx.fillStyle = hot ? PAL.hot : "#000000";
       ctx.fill();
     });
 
@@ -344,9 +345,12 @@ export function Viewport({ board, projectId, overlays, urls, unitsPerMm, ref, vi
           ctx.lineTo(b.x, b.y);
           dots.push(a, b);
         }
+        ctx.strokeStyle = "#008cff";
+        ctx.shadowColor = "#008cff"; ctx.shadowBlur = 5;
+        ctx.lineWidth = 6; ctx.stroke();
+        ctx.shadowBlur = 0;
         ctx.strokeStyle = PAL.trace;
-        ctx.lineWidth = 2.5;
-        ctx.stroke();
+        ctx.lineWidth = 2.5; ctx.stroke();
         ctx.fillStyle = PAL.trace;
         const radius = Math.max(2.2, Math.min(5, 3.2));
         for (const dot of dots) {
@@ -375,7 +379,11 @@ export function Viewport({ board, projectId, overlays, urls, unitsPerMm, ref, vi
           const b = project(endpoint.x, endpoint.y);
           ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y);
         }
-        ctx.stroke();
+        ctx.strokeStyle = "#008cff";
+        ctx.shadowColor = "#008cff"; ctx.shadowBlur = 5;
+        ctx.lineWidth = 5; ctx.stroke();
+        ctx.shadowBlur = 0; ctx.strokeStyle = PAL.trace;
+        ctx.lineWidth = 1.8; ctx.stroke();
         ctx.restore();
       }
     }
