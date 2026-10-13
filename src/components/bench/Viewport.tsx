@@ -12,8 +12,15 @@ export type ViewportHandle = {
   panBy: (dx: number, dy: number) => void;
 };
 
+export type BoardLayer = "components" | "topCopper" | "bottomCopper" | "pads" | "vias" | "outline";
+export type BoardLayerState = Record<BoardLayer, boolean>;
+export const DEFAULT_BOARD_LAYERS: BoardLayerState = { components: true, topCopper: true, bottomCopper: true, pads: true, vias: true, outline: true };
+export const BOARD_LAYER_NAMES: Record<BoardLayer, string> = { components: "Componentes", topCopper: "Pistas frontales", bottomCopper: "Pistas traseras", pads: "Pads y pines", vias: "Vías y testpoints", outline: "Contorno" };
+export const BOARD_LAYER_KEYS = Object.keys(DEFAULT_BOARD_LAYERS) as BoardLayer[];
+const isGround = (net?: string) => /(?:^|[^a-z0-9])(?:[adp]?gnd|ground|vss)(?:$|[^a-z0-9])/i.test(net ?? "");
 type Props = {
   board: Board | null;
+  layers?: BoardLayerState;
   projectId: string | null;
   overlays: OverlayRecord[];
   urls: Record<string, string>;
@@ -49,7 +56,9 @@ const PAL = {
 
 type Cam = { x: number; y: number; zoom: number };
 
-export function Viewport({ board, projectId, overlays, urls, unitsPerMm, ref, viewSide, viewMirror, marker, onCursor, strictFace = false, syncedZoom, onZoomSync, syncedPan, panSource, onPanSync }: Props) {
+export function Viewport({ board, layers = DEFAULT_BOARD_LAYERS, projectId, overlays, urls, unitsPerMm, ref, viewSide, viewMirror, marker, onCursor, strictFace = false, syncedZoom, onZoomSync, syncedPan, panSource, onPanSync }: Props) {
+  const layerRef = useRef(layers);
+  layerRef.current = layers;
   const panSyncRef = useRef(onPanSync);
   panSyncRef.current = onPanSync;
   const zoomSyncRef = useRef(onZoomSync);
@@ -232,7 +241,7 @@ export function Viewport({ board, projectId, overlays, urls, unitsPerMm, ref, vi
     }
     const { board: live, prep: ready } = current;
 
-    if (live.outline.length > 1) {
+    if (layerRef.current.outline && live.outline.length > 1) {
       ctx.beginPath();
       live.outline.forEach((point, index) => {
         const p = project(point.x, point.y);
@@ -248,7 +257,7 @@ export function Viewport({ board, projectId, overlays, urls, unitsPerMm, ref, vi
 
     const underlay = current.overlays.some((overlay) => overlay.visible && !overlay.above);
     ctx.lineWidth = 1;
-    live.parts.forEach((part, index) => {
+    if (layerRef.current.components) live.parts.forEach((part, index) => {
       if (!acceptsSide(part.side, current.side)) return;
       const box = ready.parts[index];
       if (!box) return;
@@ -287,7 +296,7 @@ export function Viewport({ board, projectId, overlays, urls, unitsPerMm, ref, vi
 
     const netOn = Boolean(current.selectedNet);
     const selectedGround = /(?:^|[^a-z0-9])(?:[adp]?gnd|ground|vss)(?:$|[^a-z0-9])/i.test(current.selectedNet ?? "");
-    if (live.outline.length > 1) {
+    if (layerRef.current.outline && live.outline.length > 1) {
       ctx.beginPath();
       live.outline.forEach((point, index) => {
         const p = project(point.x, point.y);
@@ -301,19 +310,22 @@ export function Viewport({ board, projectId, overlays, urls, unitsPerMm, ref, vi
     }
     ctx.lineWidth = 1;
     const hotNet = current.selectedNet;
-    if (live.segments.length) {
+    if (live.segments.length && (layerRef.current.topCopper || layerRef.current.bottomCopper)) {
       ctx.beginPath();
       for (const segment of live.segments) {
         if (hotNet && segment.net === hotNet) continue;
+        if ((segment.side === "top" && !layerRef.current.topCopper) || (segment.side === "bottom" && !layerRef.current.bottomCopper) || (!segment.side && !(layerRef.current.topCopper && layerRef.current.bottomCopper))) continue;
         if ((strictFace && !segment.side) || (segment.side && !acceptsSide(segment.side, current.side))) continue;
         ctx.beginPath();
         const a = project(segment.x1, segment.y1);
         const b = project(segment.x2, segment.y2);
         ctx.moveTo(a.x, a.y);
         ctx.lineTo(b.x, b.y);
-        ctx.strokeStyle = segment.side === "top" ? "#ed2024" : segment.side === "bottom" ? "#ff8c00" : current.side === "bottom" ? "#ff8c00" : "#ff2024";
+        ctx.strokeStyle = isGround(segment.net) ? "#000000" : segment.side === "top" ? "#ed2024" : segment.side === "bottom" ? "#ff8c00" : current.side === "bottom" ? "#ff8c00" : "#ff2024";
         ctx.globalAlpha = 1;
+        if (isGround(segment.net)) { ctx.shadowColor = "#071e4a"; ctx.shadowBlur = 12; ctx.lineWidth = 2.5; }
         ctx.stroke();
+        ctx.shadowBlur = 0; ctx.lineWidth = 1;
       }
       ctx.globalAlpha = 1;
         // Missing layer metadata uses the active face as a visual fallback.
@@ -322,6 +334,7 @@ export function Viewport({ board, projectId, overlays, urls, unitsPerMm, ref, vi
         ctx.beginPath();
         const dots: { x: number; y: number }[] = [];
         for (const segment of live.segments) {
+          if ((segment.side === "top" && !layerRef.current.topCopper) || (segment.side === "bottom" && !layerRef.current.bottomCopper) || (!segment.side && !(layerRef.current.topCopper && layerRef.current.bottomCopper))) continue;
           if ((strictFace && !segment.side) || segment.net !== hotNet || (segment.side && !acceptsSide(segment.side, current.side))) continue;
           const a = project(segment.x1, segment.y1);
           const b = project(segment.x2, segment.y2);
@@ -372,7 +385,7 @@ export function Viewport({ board, projectId, overlays, urls, unitsPerMm, ref, vi
       }
     }
 
-    for (let index = 0; index < live.pins.length; index++) {
+    if (layerRef.current.pads) for (let index = 0; index < live.pins.length; index++) {
       const pin = live.pins[index];
       if (!pin || !acceptsSide(pin.side, current.side)) continue;
       const p = project(pin.x, pin.y);
@@ -381,8 +394,8 @@ export function Viewport({ board, projectId, overlays, urls, unitsPerMm, ref, vi
       const s = Math.max(1.4, Math.min(14, 8 * cam.current.zoom));
       ctx.globalAlpha = 1;
       ctx.save();
-      ctx.shadowColor = "#ffffff"; ctx.shadowBlur = 6;
-      ctx.strokeStyle = hot ? (selectedGround ? "#c7a77d" : "#008cff") : "#f4fcff";
+      ctx.shadowColor = isGround(pin.net) ? "#071e4a" : "#ffffff"; ctx.shadowBlur = isGround(pin.net) ? 12 : 6;
+      ctx.strokeStyle = hot ? (selectedGround ? "#000000" : "#008cff") : "#f4fcff";
       ctx.lineWidth = hot ? 3 : 1.5;
       ctx.strokeRect(p.x - s / 2, p.y - s / 2, s, s);
       ctx.shadowBlur = 0; ctx.fillStyle = "#000000";
@@ -396,7 +409,7 @@ export function Viewport({ board, projectId, overlays, urls, unitsPerMm, ref, vi
     }
     ctx.globalAlpha = 1;
 
-    live.nails.forEach((nail, index) => {
+    if (layerRef.current.vias) live.nails.forEach((nail, index) => {
       if (!acceptsSide(nail.side, current.side)) return;
       const p = project(nail.x, nail.y);
       const hot = index === current.selectedNail || (netOn && nail.net === current.selectedNet);
@@ -408,14 +421,14 @@ export function Viewport({ board, projectId, overlays, urls, unitsPerMm, ref, vi
       ctx.lineTo(p.x - r, p.y);
       ctx.closePath();
       ctx.save();
-      ctx.shadowColor = "#ffffff"; ctx.shadowBlur = 6;
-      ctx.strokeStyle = hot ? (selectedGround ? "#c7a77d" : "#008cff") : "#f4fcff";
+      ctx.shadowColor = isGround(nail.net) ? "#071e4a" : "#ffffff"; ctx.shadowBlur = isGround(nail.net) ? 12 : 6;
+      ctx.strokeStyle = hot ? (selectedGround ? "#000000" : "#008cff") : "#f4fcff";
       ctx.lineWidth = hot ? 3 : 1.5; ctx.stroke();
       ctx.shadowBlur = 0; ctx.fillStyle = "#000000"; ctx.fill();
       ctx.restore();
     });
 
-    if (live.outlineSegments?.length) {
+    if (layerRef.current.outline && live.outlineSegments?.length) {
       ctx.beginPath();
       for (const edge of live.outlineSegments) {
         const a = project(edge.x1, edge.y1), b = project(edge.x2, edge.y2);
@@ -485,6 +498,8 @@ export function Viewport({ board, projectId, overlays, urls, unitsPerMm, ref, vi
       draw();
     });
   };
+
+  useEffect(() => { requestDraw(); }, [layers]);
 
   const fitBox = (box: Bounds, pad = 0.86, remember = false) => {
     const { w, h } = size.current;

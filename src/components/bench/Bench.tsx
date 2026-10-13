@@ -25,7 +25,7 @@ import { NexusViewer } from "@/components/bench/NexusViewer";
 import { DiagramPane } from "@/components/bench/DiagramPane";
 import { FolderGallery } from "@/components/bench/FolderGallery";
 import { TranslationPanel } from "@/components/bench/TranslationPanel";
-import { Viewport, type ViewportHandle } from "@/components/bench/Viewport";
+import { Viewport, type ViewportHandle, DEFAULT_BOARD_LAYERS, BOARD_LAYER_KEYS, BOARD_LAYER_NAMES, type BoardLayerState, type BoardLayer } from "@/components/bench/Viewport";
 import { prepare } from "@/lib/board/geometry";
 import { UNIT_PRESETS } from "@/lib/board/units";
 import type { Side } from "@/lib/board/types";
@@ -82,6 +82,18 @@ export function Bench() {
   const urls = useBench((state) => state.urls);
   const side = useBench((state) => state.side);
   const rearOpen = side === "both";
+  const [syncLayers, setSyncLayers] = useState(true);
+  const [frontLayers, setFrontLayers] = useState<BoardLayerState>({...DEFAULT_BOARD_LAYERS});
+  const [rearLayers, setRearLayers] = useState<BoardLayerState>({...DEFAULT_BOARD_LAYERS});
+  const setBoardLayer = (face: "front" | "rear", key: BoardLayer, value: boolean) => {
+    if (syncLayers) { setFrontLayers(p => ({...p,[key]:value})); setRearLayers(p => ({...p,[key]:value})); }
+    else if (face === "front") setFrontLayers(p => ({...p,[key]:value}));
+    else setRearLayers(p => ({...p,[key]:value}));
+  };
+  const layerControls = (face: "front" | "rear") => <details className="border-b border-border bg-bg-elevated px-2 py-1 text-xs">
+    <summary className="cursor-pointer font-semibold">☷ CAPAS · {face === "front" ? "Frontal" : "Trasera"}</summary>
+    <div className="flex flex-wrap gap-x-3 gap-y-2 py-2">{BOARD_LAYER_KEYS.map(key => <label key={key} className="inline-flex items-center gap-1"><input type="checkbox" checked={(face === "front" ? frontLayers : rearLayers)[key]} onChange={e => setBoardLayer(face,key,e.target.checked)} />{BOARD_LAYER_NAMES[key]}</label>)}</div>
+  </details>;
   const mirror = useBench((state) => state.mirror);
   const tool = useBench((state) => state.tool);
   const query = useBench((state) => state.query);
@@ -419,6 +431,7 @@ export function Bench() {
         </details>
         {boardTools ? <>
         <Button variant="quiet" disabled={importing} onClick={() => compareRef.current?.click()}>Comparar diagrama</Button>
+        {board && rearOpen ? <Button variant={syncLayers ? "primary" : "quiet"} aria-pressed={syncLayers} onClick={() => { if (!syncLayers) setRearLayers({...frontLayers}); setSyncLayers(!syncLayers); }}>{syncLayers ? "🔗 Capas sincronizadas" : "🔓 Capas independientes"}</Button> : null}
         <Button variant={rearOpen ? "primary" : "quiet"} aria-pressed={rearOpen} onClick={() => setSide(rearOpen ? "top" : "both")}>Dos caras</Button>
         <div className="flex rounded-panel border border-border p-1">
           {(
@@ -614,8 +627,10 @@ export function Bench() {
                 />
               ) : ready ? (
                 <section className="flex min-w-0 flex-1 flex-col">
+                {board ? layerControls("front") : null}
                 {board && rearOpen ? <h2 className="border-b border-border px-3 py-2 text-sm font-medium">Frontal · rojo</h2> : null}
                 <Viewport
+                  layers={frontLayers}
                   ref={viewRef}
                   syncedZoom={rearOpen ? syncedZoom : null}
                   syncedPan={rearOpen ? panSync : null}
@@ -638,7 +653,8 @@ export function Bench() {
               )}
               {rearOpen && board ? <section className="flex min-w-0 flex-1 flex-col border-l border-border bg-bg-elevated">
                 <h2 className="border-b border-border px-3 py-2 text-sm font-medium">Inferior · cyan</h2>
-                {board.parts.some(part => part.side === "top") && board.parts.some(part => part.side === "bottom") ? <Viewport syncedZoom={syncedZoom} onZoomSync={syncZoom} syncedPan={panSync} panSource="rear" onPanSync={(dx,dy) => setPanSync({dx,dy,source:"rear",token:Date.now()+Math.random()})} strictFace board={board} projectId={project?.id ?? null} overlays={[]} urls={urls} unitsPerMm={project?.unitsPerMm ?? 39.37} viewSide="bottom" viewMirror={true} marker={boardCursor} onCursor={setBoardCursor} /> : <p className="overflow-auto p-3 text-xs text-muted">Este lector no recuperó los datos de la cara inferior. La vista frontal no se duplica aquí.</p>}
+                {layerControls("rear")}
+                {board.parts.some(part => part.side === "top") && board.parts.some(part => part.side === "bottom") ? <Viewport layers={rearLayers} syncedZoom={syncedZoom} onZoomSync={syncZoom} syncedPan={panSync} panSource="rear" onPanSync={(dx,dy) => setPanSync({dx,dy,source:"rear",token:Date.now()+Math.random()})} strictFace board={board} projectId={project?.id ?? null} overlays={[]} urls={urls} unitsPerMm={project?.unitsPerMm ?? 39.37} viewSide="bottom" viewMirror={true} marker={boardCursor} onCursor={setBoardCursor} /> : <p className="overflow-auto p-3 text-xs text-muted">Este lector no recuperó los datos de la cara inferior. La vista frontal no se duplica aquí.</p>}
               </section> : null}
               {!board && ready && !project?.folder && (project?.overlays.length ?? 0) === 0 && (project?.diagrams.length ?? 0) === 0 ? (
                 <div className="pointer-events-none absolute inset-0 flex items-center justify-center px-6 text-center">

@@ -57,3 +57,7 @@ Con una placa abierta, pulsa Comparar diagrama y elige PSD, PDF, imagen o .kicad
 - Los documentos adicionales se guardan dentro del proyecto activo para poder seleccionarlos independientemente.
 - La vista dividida también puede mostrar el BoardView a la izquierda y un documento a la derecha.
 - No se ha ejecutado compilación de producción: faltan dependencias de npm en el entorno offline. Revisar con `npm ci && npm run typecheck && npm run build`.
+
+
+## Capas de BoardView
+En cada cara se incluye el menú CAPAS para mostrar u ocultar componentes, cobre frontal, cobre trasero, pads, vías/testpoints y contorno. El botón de barra superior alterna capas sincronizadas e independientes. Las redes GND con nombre identificable se dibujan negras con brillo azul marino. Las capas disponibles dependen de los metadatos que el archivo origen proporciona; pistas sin información de cara se ocultan al desactivar una de las capas de cobre.
