@@ -42,6 +42,8 @@ function sideLabel(side: Side): string {
 export function Bench() {
   const [syncedZoom, setSyncedZoom] = useState<{ zoom: number; x: number; y: number; token: number } | null>(null);
   const syncZoom = (zoom: number, point: { x: number; y: number }) => setSyncedZoom(previous => ({ zoom, ...point, token: (previous?.token ?? 0) + 1 }));
+  const [panSync, setPanSync] = useState<{ dx: number; dy: number; token: number; source: "front" | "rear" } | null>(null);
+  const [diagramLayout, setDiagramLayout] = useState<"full" | "split">("full");
   const [boardCursor, setBoardCursor] = useState<{ x: number; y: number } | null>(null);
 
   const boot = useBench((state) => state.boot);
@@ -49,7 +51,7 @@ export function Bench() {
   const importing = useBench((state) => state.importing);
   const projects = useBench((state) => state.projects);
   const project = useActiveProject();
-  useEffect(() => { setBoardCursor(null); setSyncedZoom(null); }, [project?.id]);
+  useEffect(() => { setBoardCursor(null); setSyncedZoom(null); setPanSync(null); }, [project?.id]);
   const urls = useBench((state) => state.urls);
   const side = useBench((state) => state.side);
   const rearOpen = side === "both";
@@ -544,8 +546,8 @@ export function Bench() {
         </aside>
 
         <div className="relative flex min-w-0 flex-1">
-          <div className={cn("grid min-h-0 min-w-0 flex-1", diagramOpen && diagramUrl && activeDiagram && "xe-compare")}>
-            <div className={cn("relative flex min-h-0 min-w-0", diagramOpen && diagramUrl && "min-h-0")}>
+          <div className={cn("grid min-h-0 min-w-0 flex-1", diagramOpen && diagramUrl && activeDiagram && diagramLayout === "split" && "xe-compare")}>
+            <div className={cn("relative flex min-h-0 min-w-0", diagramOpen && diagramUrl && diagramLayout === "full" && "hidden")}>
               {ready && project?.folder ? (
                 <FolderGallery
                   name={project.name}
@@ -560,6 +562,9 @@ export function Bench() {
                 <Viewport
                   ref={viewRef}
                   syncedZoom={rearOpen ? syncedZoom : null}
+                  syncedPan={rearOpen ? panSync : null}
+                  panSource="front"
+                  onPanSync={rearOpen ? (dx, dy) => setPanSync({dx,dy,source:"front",token:Date.now()+Math.random()}) : undefined}
                   onZoomSync={rearOpen ? syncZoom : undefined}
                   viewSide={rearOpen && board ? "top" : undefined}
                   viewMirror={rearOpen && board ? false : undefined}
@@ -577,7 +582,7 @@ export function Bench() {
               )}
               {rearOpen && board ? <section className="flex min-w-0 flex-1 flex-col border-l border-border bg-bg-elevated">
                 <h2 className="border-b border-border px-3 py-2 text-sm font-medium">Inferior · cyan</h2>
-                {board.parts.some(part => part.side === "top") && board.parts.some(part => part.side === "bottom") ? <Viewport syncedZoom={syncedZoom} onZoomSync={syncZoom} strictFace board={board} projectId={project?.id ?? null} overlays={[]} urls={urls} unitsPerMm={project?.unitsPerMm ?? 39.37} viewSide="bottom" viewMirror={true} marker={boardCursor} onCursor={setBoardCursor} /> : <p className="overflow-auto p-3 text-xs text-muted">Este lector no recuperó los datos de la cara inferior. La vista frontal no se duplica aquí.</p>}
+                {board.parts.some(part => part.side === "top") && board.parts.some(part => part.side === "bottom") ? <Viewport syncedZoom={syncedZoom} onZoomSync={syncZoom} syncedPan={panSync} panSource="rear" onPanSync={(dx,dy) => setPanSync({dx,dy,source:"rear",token:Date.now()+Math.random()})} strictFace board={board} projectId={project?.id ?? null} overlays={[]} urls={urls} unitsPerMm={project?.unitsPerMm ?? 39.37} viewSide="bottom" viewMirror={true} marker={boardCursor} onCursor={setBoardCursor} /> : <p className="overflow-auto p-3 text-xs text-muted">Este lector no recuperó los datos de la cara inferior. La vista frontal no se duplica aquí.</p>}
               </section> : null}
               {!board && ready && !project?.folder && (project?.overlays.length ?? 0) === 0 && (project?.diagrams.length ?? 0) === 0 ? (
                 <div className="pointer-events-none absolute inset-0 flex items-center justify-center px-6 text-center">
@@ -598,7 +603,7 @@ export function Bench() {
               ) : null}
             </div>
             {diagramOpen && activeDiagram && diagramUrl ? (
-              <DiagramPane key={activeDiagram.id} diagram={activeDiagram} url={diagramUrl} onClose={toggleDiagram} />
+              <DiagramPane key={activeDiagram.id} diagram={activeDiagram} url={diagramUrl} onClose={toggleDiagram} layout={diagramLayout} onLayoutChange={setDiagramLayout} />
             ) : null}
           </div>
           {notice ? (

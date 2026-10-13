@@ -19,6 +19,9 @@ type Props = {
   urls: Record<string, string>;
   unitsPerMm: number;
   ref?: Ref<ViewportHandle>;
+  syncedPan?: { dx: number; dy: number; token: number; source: "front" | "rear" } | null;
+  panSource?: "front" | "rear";
+  onPanSync?: (dx: number, dy: number) => void;
   syncedZoom?: { zoom: number; x: number; y: number; token: number } | null;
   onZoomSync?: (zoom: number, point: { x: number; y: number }) => void;
   strictFace?: boolean;
@@ -46,7 +49,9 @@ const PAL = {
 
 type Cam = { x: number; y: number; zoom: number };
 
-export function Viewport({ board, projectId, overlays, urls, unitsPerMm, ref, viewSide, viewMirror, marker, onCursor, strictFace = false, syncedZoom, onZoomSync }: Props) {
+export function Viewport({ board, projectId, overlays, urls, unitsPerMm, ref, viewSide, viewMirror, marker, onCursor, strictFace = false, syncedZoom, onZoomSync, syncedPan, panSource, onPanSync }: Props) {
+  const panSyncRef = useRef(onPanSync);
+  panSyncRef.current = onPanSync;
   const zoomSyncRef = useRef(onZoomSync);
   zoomSyncRef.current = onZoomSync;
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -507,9 +512,17 @@ export function Viewport({ board, projectId, overlays, urls, unitsPerMm, ref, vi
   const emitZoom = (fallback?: { x: number; y: number }) => {
     zoomSyncRef.current?.(cam.current.zoom, markerRef.current ?? fallback ?? unproject(size.current.w / 2, size.current.h / 2));
   };
-  const emitPan = () => {
-    zoomSyncRef.current?.(cam.current.zoom, unproject(size.current.w / 2, size.current.h / 2));
+  const emitPan = (dx: number, dy: number) => {
+    if (panSyncRef.current) panSyncRef.current(dx, dy);
+    else zoomSyncRef.current?.(cam.current.zoom, unproject(size.current.w / 2, size.current.h / 2));
   };
+  useEffect(() => {
+    if (!syncedPan || syncedPan.source === panSource) return;
+    cam.current.x += (latest.current.mirror ? syncedPan.dx : -syncedPan.dx) / cam.current.zoom;
+    cam.current.y += syncedPan.dy / cam.current.zoom;
+    userMoved.current = true;
+    requestDraw();
+  }, [syncedPan]);
   useEffect(() => {
     if (!syncedZoom) return;
     cam.current.zoom = syncedZoom.zoom;
@@ -538,7 +551,7 @@ export function Viewport({ board, projectId, overlays, urls, unitsPerMm, ref, vi
       cam.current.x += (mirrorOn ? dx : -dx) / cam.current.zoom;
       cam.current.y += dy / cam.current.zoom;
       userMoved.current = true;
-      emitPan();
+      emitPan(dx, dy);
       requestDraw();
     },
   }));
@@ -804,7 +817,7 @@ export function Viewport({ board, projectId, overlays, urls, unitsPerMm, ref, vi
             const movedY = point.sy - active.lastY;
             cam.current.x -= (mirrorOn ? -movedX : movedX) / cam.current.zoom;
             cam.current.y += movedY / cam.current.zoom;
-            emitPan();
+            emitPan(movedX, movedY);
             requestDraw();
           }
           active.lastX = point.sx;

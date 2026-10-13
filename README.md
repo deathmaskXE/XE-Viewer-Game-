@@ -43,3 +43,8 @@ Abre placas .kicad_pcb de formato S-expression, incluidas las variantes module y
 
 ### Comparar y esquemas
 Con una placa abierta, pulsa Comparar diagrama y elige PSD, PDF, imagen o .kicad_sch. Se abre al lado con zoom independiente; en pantallas pequeñas se apilan las vistas. El lector de esquemas KiCad muestra símbolos incrustados, cables, etiquetas y referencias en una vista SVG ampliable. Es una representación simplificada: no sustituye al editor KiCad ni carga automáticamente las hojas externas de un esquema jerárquico. Los PDF tienen selector de páginas.
+
+
+## Vista completa y sincronización
+- Archivos de imagen/PDF/PSD se abren en el espacio completo del visor, con opción de vista dividida.
+- Las dos caras se arrastran en la misma dirección visual con ratón y táctil.
