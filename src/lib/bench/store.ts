@@ -654,13 +654,17 @@ async function importFilesImpl(
           targetId = next.id;
         }
       }
-    } else if (compare && active?.board) {
+    } else if (compare && active) {
       const items = extras.filter(item => !(item.role === "overlay" && /\.ps[db]\.png$/i.test(item.file.name))).map(item => ({ ...item, role: "diagram" as const }));
-      const attached = await attach({ ...active, diagrams: [] }, items);
+      const attached = await attach(active, items);
       const next = { ...active, diagrams: attached.diagrams, updated: Date.now() };
       await saveProject(next);
       set({ projects: get().projects.map(project => project.id === next.id ? next : project) });
       targetId = next.id;
+      for (const item of attached.made) {
+        set({ urls: { ...get().urls, [item.id]: URL.createObjectURL(item.blob) } });
+      }
+      if (attached.diagrams.length) set({ activeDiagramId: attached.diagrams[attached.diagrams.length - 1].id });
     } else {
       // A separately opened image or PDF is a new document, not an overlay
       // on the previous board. A PSD uses its original layer file as the view.

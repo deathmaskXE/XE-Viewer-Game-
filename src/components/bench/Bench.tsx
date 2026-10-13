@@ -44,6 +44,33 @@ export function Bench() {
   const syncZoom = (zoom: number, point: { x: number; y: number }) => setSyncedZoom(previous => ({ zoom, ...point, token: (previous?.token ?? 0) + 1 }));
   const [panSync, setPanSync] = useState<{ dx: number; dy: number; token: number; source: "front" | "rear" } | null>(null);
   const [diagramLayout, setDiagramLayout] = useState<"full" | "split">("full");
+  const [leftDiagramId, setLeftDiagramId] = useState<string | null>(null);
+  const [rightDiagramId, setRightDiagramId] = useState<string | null>(null);
+  const [importTarget, setImportTarget] = useState<"left" | "right">("right");
+  const [paneChooser, setPaneChooser] = useState<"left" | "right" | null>(null);
+  const paneFileRef = useRef<HTMLInputElement>(null);
+  const paneFolderRef = useRef<HTMLInputElement>(null);
+  const beforeImportIds = useRef<string[]>([]);
+  const startPaneImport = (target: "left" | "right", folder = false) => {
+    setImportTarget(target);
+    beforeImportIds.current = project?.diagrams.map(d => d.id) ?? [];
+    (folder ? paneFolderRef : paneFileRef).current?.click();
+  };
+  const finishPaneImport = async (files: File[], folder = false, target = importTarget) => {
+    if (!files.length) return;
+    // Import as documents in the active workspace, not a new board project.
+    await importFiles(files, true);
+    const state = useBench.getState();
+    const current = state.projects.find(p => p.id === state.activeId);
+    const added = current?.diagrams.filter(d => !beforeImportIds.current.includes(d.id)) ?? [];
+    if (added.length) {
+      if (diagramLayout === "full" && target === "right" && activeDiagramId) setLeftDiagramId(activeDiagramId);
+      if (target === "left") setLeftDiagramId(added[0].id);
+      else setRightDiagramId(added[0].id);
+      setDiagramLayout("split");
+      setPaneChooser(null);
+    }
+  };
   const [boardCursor, setBoardCursor] = useState<{ x: number; y: number } | null>(null);
 
   const boot = useBench((state) => state.boot);
@@ -51,7 +78,7 @@ export function Bench() {
   const importing = useBench((state) => state.importing);
   const projects = useBench((state) => state.projects);
   const project = useActiveProject();
-  useEffect(() => { setBoardCursor(null); setSyncedZoom(null); setPanSync(null); }, [project?.id]);
+  useEffect(() => { setBoardCursor(null); setSyncedZoom(null); setPanSync(null); setLeftDiagramId(null); setRightDiagramId(null); setDiagramLayout("full"); }, [project?.id]);
   const urls = useBench((state) => state.urls);
   const side = useBench((state) => state.side);
   const rearOpen = side === "both";
@@ -218,6 +245,21 @@ export function Bench() {
   const translationOverlay = project?.overlays.find((overlay) => overlay.id === translationOverlayId) ?? null;
   const activeDiagram = project?.diagrams.find((diagram) => diagram.id === activeDiagramId) ?? null;
   const diagramUrl = activeDiagram ? urls[activeDiagram.id] : undefined;
+  const visibleLeft = project?.diagrams.find(d => d.id === leftDiagramId) ?? (project?.board ? null : project?.diagrams[0] ?? null);
+  const visibleRight = project?.diagrams.find(d => d.id === rightDiagramId) ?? activeDiagram;
+  const openDocument = (id: string) => {
+    if (!diagramOpen) {
+      setDiagramLayout("full");
+      setRightDiagramId(id);
+    } else if (diagramLayout === "full" && activeDiagramId !== id) {
+      setLeftDiagramId(activeDiagramId);
+      setRightDiagramId(id);
+      setDiagramLayout("split");
+    } else if (diagramLayout === "split") {
+      setRightDiagramId(id);
+    } else setRightDiagramId(id);
+    setActiveDiagram(id);
+  };
   const selected = selectedPart != null ? board?.parts[selectedPart] : null;
   const selectedPins = board && selectedPart != null ? board.pins.filter((pin) => pin.part === selectedPart) : [];
   const nail = selectedNail != null ? board?.nails[selectedNail] : null;
@@ -260,6 +302,8 @@ export function Bench() {
           .finally(() => setReadingFolder(false));
       }}
     >
+      <input ref={paneFileRef} type="file" multiple className="sr-only" aria-label="Abrir archivo en ventana" accept=".psd,.psb,.pdf,.png,.jpg,.jpeg,.webp,.svg,.kicad_sch" onChange={e => { const files=[...(e.target.files ?? [])]; e.target.value=""; void finishPaneImport(files); }} />
+      <input type="file" multiple className="sr-only" aria-label="Abrir carpeta en ventana" ref={(element) => { paneFolderRef.current=element; element?.setAttribute("webkitdirectory",""); element?.setAttribute("directory",""); }} onChange={e => { const files=[...(e.target.files ?? [])]; e.target.value=""; void finishPaneImport(files,true); }} />
       <input ref={compareRef} type="file" className="sr-only" aria-label="Elegir diagrama para comparar" accept=".psd,.psb,.pdf,.png,.jpg,.jpeg,.webp,.svg,.kicad_sch" onChange={(event) => { const files = event.target.files; if(files?.length) void importFiles([...files], true); event.target.value = ""; }} />
       <input
         ref={fileRef}
@@ -270,7 +314,13 @@ export function Bench() {
         accept=".sqlite3,.kicad_sch,.kicad_pro,.kicad_mod,.kicad_pcb,.bin,.brd,.bvr,.bdv,.fz,.cad,.asc,.pcb,.gencad,.gcd,.csv,.txt,.json,.png,.jpg,.jpeg,.webp,.gif,.bmp,.svg,.pdf,.psd,.psb,image/*,application/pdf"
         onChange={(event) => {
           const list = event.target.files;
-          if (list?.length) void importFiles([...list]);
+          if (list?.length) {
+            if (diagramOpen && project?.diagrams.length) {
+              setImportTarget("right");
+              beforeImportIds.current = project.diagrams.map(d=>d.id);
+              void finishPaneImport([...list],false,"right");
+            } else void importFiles([...list]);
+          }
           event.target.value = "";
         }}
       />
@@ -286,7 +336,13 @@ export function Bench() {
         aria-label="Abrir carpeta"
         onChange={(event) => {
           const list = event.target.files;
-          if (list?.length) void importFolder([...list]);
+          if (list?.length) {
+            if (diagramOpen && project?.diagrams.length) {
+              setImportTarget("right");
+              beforeImportIds.current = project.diagrams.map(d=>d.id);
+              void finishPaneImport([...list],true,"right");
+            } else void importFolder([...list]);
+          }
           event.target.value = "";
         }}
       />
@@ -546,15 +602,15 @@ export function Bench() {
         </aside>
 
         <div className="relative flex min-w-0 flex-1">
-          <div className={cn("grid min-h-0 min-w-0 flex-1", diagramOpen && diagramUrl && activeDiagram && diagramLayout === "split" && "xe-compare")}>
-            <div className={cn("relative flex min-h-0 min-w-0", diagramOpen && diagramUrl && diagramLayout === "full" && "hidden")}>
+          <div className={cn("grid min-h-0 min-w-0 flex-1", diagramOpen && diagramLayout==="split" && "xe-compare")}>
+            <div className={cn("relative flex min-h-0 min-w-0", diagramOpen && (diagramLayout === "full" || (diagramLayout === "split" && Boolean(visibleLeft))) && "hidden")}>
               {ready && project?.folder ? (
                 <FolderGallery
                   name={project.name}
                   items={project.diagrams}
                   urls={urls}
                   activeId={diagramOpen ? activeDiagramId : null}
-                  onOpen={setActiveDiagram}
+                  onOpen={openDocument}
                 />
               ) : ready ? (
                 <section className="flex min-w-0 flex-1 flex-col">
@@ -602,8 +658,27 @@ export function Bench() {
                 </div>
               ) : null}
             </div>
-            {diagramOpen && activeDiagram && diagramUrl ? (
-              <DiagramPane key={activeDiagram.id} diagram={activeDiagram} url={diagramUrl} onClose={toggleDiagram} layout={diagramLayout} onLayoutChange={setDiagramLayout} />
+            {diagramOpen && diagramLayout==="split" && visibleLeft ? (
+              <div className="relative flex min-h-0 min-w-0 flex-col">
+                <div className="flex shrink-0 flex-wrap gap-1 border-b border-border bg-bg-elevated p-1">
+                  <Button size="sm" onClick={() => startPaneImport("left")}>Abrir archivo</Button>
+                  <Button size="sm" onClick={() => startPaneImport("left",true)}>Abrir carpeta</Button>
+                  <Button size="sm" onClick={() => setPaneChooser(paneChooser==="left"?null:"left")}>Elegir archivo</Button>
+                </div>
+                {paneChooser==="left" ? <div className="max-h-36 overflow-auto border-b border-border bg-bg-elevated p-2">{project?.diagrams.map(d => <button key={d.id} className="block w-full p-2 text-left text-xs" onClick={() => {setLeftDiagramId(d.id);setPaneChooser(null)}}>{d.name}</button>)}</div> : null}
+                <div className="flex min-h-0 flex-1"><DiagramPane key={visibleLeft.id} diagram={visibleLeft} url={urls[visibleLeft.id]} onClose={() => {setLeftDiagramId(null);setDiagramLayout("full")}} layout="split" onLayoutChange={setDiagramLayout}/></div>
+              </div>
+            ) : null}
+            {diagramOpen && visibleRight && urls[visibleRight.id] ? (
+              <div className="relative flex min-h-0 min-w-0 flex-col">
+                <div className="flex shrink-0 flex-wrap gap-1 border-b border-border bg-bg-elevated p-1">
+                  <Button size="sm" onClick={() => startPaneImport("right")}>Abrir archivo</Button>
+                  <Button size="sm" onClick={() => startPaneImport("right",true)}>Abrir carpeta</Button>
+                  <Button size="sm" onClick={() => setPaneChooser(paneChooser==="right"?null:"right")}>Elegir archivo</Button>
+                </div>
+                {paneChooser==="right" ? <div className="max-h-36 overflow-auto border-b border-border bg-bg-elevated p-2">{project?.diagrams.map(d => <button key={d.id} className="block w-full p-2 text-left text-xs" onClick={() => {setRightDiagramId(d.id);setActiveDiagram(d.id);setPaneChooser(null)}}>{d.name}</button>)}</div> : null}
+                <div className="flex min-h-0 flex-1"><DiagramPane key={visibleRight.id} diagram={visibleRight} url={urls[visibleRight.id]} onClose={() => {if(diagramLayout==="split"&&visibleLeft){setRightDiagramId(null);setDiagramLayout("full");setActiveDiagram(visibleLeft.id)}else toggleDiagram()}} layout={diagramLayout} onLayoutChange={setDiagramLayout}/></div>
+              </div>
             ) : null}
           </div>
           {notice ? (

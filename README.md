@@ -48,3 +48,12 @@ Con una placa abierta, pulsa Comparar diagrama y elige PSD, PDF, imagen o .kicad
 ## Vista completa y sincronización
 - Archivos de imagen/PDF/PSD se abren en el espacio completo del visor, con opción de vista dividida.
 - Las dos caras se arrastran en la misma dirección visual con ratón y táctil.
+
+
+## Ventanas independientes (octubre 2026)
+- El primer documento (imagen, PSD/PSB, PDF, SVG) se abre en vista completa del área de trabajo.
+- Al abrir un segundo documento desde Abrir o desde el botón de una ventana, se activa la vista dividida con el anterior a la izquierda y el nuevo a la derecha.
+- Cada ventana dispone de Abrir archivo, Abrir carpeta y Elegir archivo. Cada una mantiene sus propios controles de zoom, arrastre, página PDF y capas PSD.
+- Los documentos adicionales se guardan dentro del proyecto activo para poder seleccionarlos independientemente.
+- La vista dividida también puede mostrar el BoardView a la izquierda y un documento a la derecha.
+- No se ha ejecutado compilación de producción: faltan dependencias de npm en el entorno offline. Revisar con `npm ci && npm run typecheck && npm run build`.
