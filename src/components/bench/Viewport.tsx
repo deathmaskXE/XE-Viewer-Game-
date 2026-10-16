@@ -18,6 +18,7 @@ export const DEFAULT_BOARD_LAYERS: BoardLayerState = { components: true, topCopp
 export const BOARD_LAYER_NAMES: Record<BoardLayer, string> = { components: "Componentes", topCopper: "Pistas frontales", bottomCopper: "Pistas traseras", pads: "Pads y pines", vias: "Vías y testpoints", outline: "Contorno", inner1: "INNER 1", inner2: "INNER 2", inner3: "INNER 3", inner4: "INNER 4", topSilk: "TOP SILK", bottomSilk: "BOTTOM SILK" };
 export function segmentLayerVisible(segment: { layer?: string; side?: string }, state: BoardLayerState): boolean {
   if (segment.layer === "Edge.Cuts") return state.outline;
+  if (segment.layer?.startsWith("XZZ.")) return state.topCopper || state.bottomCopper;
   if (segment.layer === "F.SilkS") return state.topSilk;
   if (segment.layer === "B.SilkS") return state.bottomSilk;
   const match = segment.layer?.match(/^In([1-4])\.Cu$/);

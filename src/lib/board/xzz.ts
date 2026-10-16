@@ -107,6 +107,27 @@ function arcSegments(
   return segments;
 }
 
+/** XZZ geometry records begin with a numeric source layer identifier.
+ * Keep the original ID as well as the viewer alias so unsupported IDs are
+ * inspectable instead of silently merging all geometry into TOP.
+ */
+const XZZ_LAYERS: Record<number, string> = {
+  1: "F.Cu", 3: "In1.Cu", 5: "In2.Cu", 7: "In3.Cu",
+  8: "In4.Cu", 10: "B.Cu", 16: "XZZ.16", 17: "XZZ.17",
+  28: "Edge.Cuts",
+};
+function sourceLayer(body: Uint8Array): string | undefined {
+  if (body.length < 4) return undefined;
+  const id = u32(body, 0);
+  return XZZ_LAYERS[id] ?? `XZZ.${id}`;
+}
+function tagLayer(segment: BoardSegment, body: Uint8Array): BoardSegment {
+  segment.layer = sourceLayer(body);
+  if (segment.layer === "F.Cu") segment.side = "top";
+  if (segment.layer === "B.Cu") segment.side = "bottom";
+  return segment;
+}
+
 function lineOf(body: Uint8Array, net?: string): BoardSegment | null {
   if (body.length < 20) return null;
   return {
@@ -155,6 +176,7 @@ export function parseXzz(name: string, source: Uint8Array): Board {
     if (type === 5) {
       const segment = lineOf(body, body.length >= 28 ? nets.get(u32(body, 24)) : undefined);
       if (!segment) continue;
+      tagLayer(segment, body);
       segments.push(segment);
       if (u32(body, 0) === 28) {
         outlinePoints.push({ x: segment.x1, y: segment.y1 }, { x: segment.x2, y: segment.y2 });
@@ -170,6 +192,7 @@ export function parseXzz(name: string, source: Uint8Array): Board {
           mils(i32(body, 20)),
           body.length >= 32 ? nets.get(u32(body, 28)) : undefined,
         );
+      for (const segment of arc) tagLayer(segment, body);
       segments.push(...arc);
       if (u32(body, 0) === 28) for (const segment of arc) outlinePoints.push({ x: segment.x1, y: segment.y1 }, { x: segment.x2, y: segment.y2 });
       continue;
@@ -191,6 +214,7 @@ export function parseXzz(name: string, source: Uint8Array): Board {
     outline,
     outlineSegments: outlinePoints.filter((_, index) => index % 2 === 0).map((a, index) => { const b = outlinePoints[index * 2 + 1]; return { x1: a.x, y1: a.y, x2: b.x, y2: b.y }; }),
     segments,
+    availableLayers: [...new Set(segments.map(s => s.layer).filter((layer): layer is string => !!layer))],
     parts,
     pins,
     nails: [],
@@ -229,7 +253,7 @@ function readPart(
     cursor += 5 + size;
     if (sub === 5) {
       const segment = lineOf(body);
-      if (segment) segments.push(segment);
+      if (segment) segments.push(tagLayer(segment, body));
       continue;
     }
     if (sub === 6 && body.length >= 30) {
