@@ -38,16 +38,16 @@ export function parseKicad(name: string, text: string): Board {
   const standalone = root[0] === "footprint" || root[0] === "module";
   if (standalone) root = ["kicad_pcb", root];
   if (root[0] !== "kicad_pcb") throw new Error("Abre la placa .kicad_pcb. Los esquemas y proyectos KiCad necesitan otro lector.");
-  const board: Board = { name: name.replace(/\.[^.]+$/, ""), format: standalone ? "KiCad huella" : "KiCad", unitsPerMm: MIL_PER_MM, parts: [], pins: [], nails: [], segments: [], outline: [], outlineSegments: [] };
+  const board: Board = { name: name.replace(/\.[^.]+$/, ""), format: standalone ? "KiCad huella" : "KiCad", unitsPerMm: MIL_PER_MM, parts: [], pins: [], nails: [], segments: [], outline: [], outlineSegments: [], availableLayers: [] };
   const nets = new Map(children(root, "net").map((node) => [str(node, 1), str(node, 2)]));
   const netName = (node: Node) => { const net = child(node, "net"); return str(net, 2) || nets.get(str(net, 1)) || (Number.isNaN(Number(str(net, 1))) ? str(net, 1) : ""); };
   const convert = (p: BoardPoint) => ({ x: p.x * MIL_PER_MM, y: -p.y * MIL_PER_MM });
-  const edges = (points: BoardPoint[], transform: (p: BoardPoint) => BoardPoint, boundary: boolean, net?: string, side?: Side) => {
-    for (let i = 1; i < points.length; i++) { const a = convert(transform(points[i - 1])), b = convert(transform(points[i])); const edge = { x1: a.x, y1: a.y, x2: b.x, y2: b.y, net, side }; board.segments.push(edge); if (boundary) board.outlineSegments!.push(edge); }
+  const edges = (points: BoardPoint[], transform: (p: BoardPoint) => BoardPoint, boundary: boolean, net?: string, side?: Side, layer?: string) => {
+    for (let i = 1; i < points.length; i++) { const a = convert(transform(points[i - 1])), b = convert(transform(points[i])); const edge = { x1: a.x, y1: a.y, x2: b.x, y2: b.y, net, side, layer }; board.segments.push(edge); if (boundary) board.outlineSegments!.push(edge); }
   };
   const graphic = (node: Node, transform: (p: BoardPoint) => BoardPoint, copper = false) => {
     const kind = str(node, 0), boundary = str(child(node, "layer"), 1) === "Edge.Cuts";
-    if (!boundary && !copper && !standalone) return;
+    if (!boundary && !copper && !standalone && !/^(F|B)\.SilkS$/.test(str(child(node,"layer"),1))) return;
     const a = point(child(node, "start")), b = point(child(node, "end"));
     let points: BoardPoint[] = [];
     if (kind.endsWith("line") || kind === "segment") points = [a, b];
@@ -60,7 +60,7 @@ export function parseKicad(name: string, text: string): Board {
       else { const sweep = number(child(node,"angle"),1)*Math.PI/180; const r=Math.hypot(b.x-a.x,b.y-a.y), start=Math.atan2(b.y-a.y,b.x-a.x); const count=Math.max(4,Math.ceil(Math.abs(sweep)/(Math.PI/36))); points=Array.from({length:count+1},(_,i)=>({x:a.x+r*Math.cos(start+sweep*i/count),y:a.y+r*Math.sin(start+sweep*i/count)})); }
     }
     const layer = str(child(node, "layer"), 1);
-    edges(points, transform, boundary, copper ? netName(node) : undefined, copper ? (layer === "F.Cu" ? "top" : layer === "B.Cu" ? "bottom" : "both") : undefined);
+    edges(points, transform, boundary, copper ? netName(node) : undefined, copper ? (layer === "F.Cu" ? "top" : layer === "B.Cu" ? "bottom" : "both") : undefined, layer);
   };
   for (const footprint of [...children(root, "footprint"), ...children(root, "module")]) {
     const at = child(footprint, "at"), origin = point(at), angle = -number(at, 3)*Math.PI/180;
@@ -75,6 +75,7 @@ export function parseKicad(name: string, text: string): Board {
     for(const item of footprint) if(Array.isArray(item)&&str(item,0).startsWith("fp_")) graphic(item,transform);
   }
   for(const item of root) if(Array.isArray(item)) { const kind=str(item,0); if(kind.startsWith("gr_")) graphic(item,p=>p); else if(kind==="segment"||kind==="arc") graphic(item,p=>p,true); else if(kind==="via") board.pins.push({...convert(point(child(item,"at"))),part:-1,name:"Vía",net:netName(item),side:"both"}); }
+  board.availableLayers = Array.from(new Set(board.segments.map(segment => segment.layer).filter((layer): layer is string => !!layer && layer !== "Edge.Cuts")));
   board.outline=largestClosedContour(board.outlineSegments!.flatMap(e=>[{x:e.x1,y:e.y1},{x:e.x2,y:e.y2}]));
   if(!board.parts.length&&!board.pins.length&&!board.segments.length) throw new Error("La placa KiCad no contiene geometría visible.");
   return board;

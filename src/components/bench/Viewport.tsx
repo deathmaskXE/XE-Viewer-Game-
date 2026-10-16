@@ -12,10 +12,20 @@ export type ViewportHandle = {
   panBy: (dx: number, dy: number) => void;
 };
 
-export type BoardLayer = "components" | "topCopper" | "bottomCopper" | "pads" | "vias" | "outline";
+export type BoardLayer = "components" | "topCopper" | "bottomCopper" | "pads" | "vias" | "outline" | "inner1" | "inner2" | "inner3" | "inner4" | "topSilk" | "bottomSilk";
 export type BoardLayerState = Record<BoardLayer, boolean>;
-export const DEFAULT_BOARD_LAYERS: BoardLayerState = { components: true, topCopper: true, bottomCopper: true, pads: true, vias: true, outline: true };
-export const BOARD_LAYER_NAMES: Record<BoardLayer, string> = { components: "Componentes", topCopper: "Pistas frontales", bottomCopper: "Pistas traseras", pads: "Pads y pines", vias: "Vías y testpoints", outline: "Contorno" };
+export const DEFAULT_BOARD_LAYERS: BoardLayerState = { components: true, topCopper: true, bottomCopper: true, pads: true, vias: true, outline: true, inner1: true, inner2: true, inner3: true, inner4: true, topSilk: true, bottomSilk: true };
+export const BOARD_LAYER_NAMES: Record<BoardLayer, string> = { components: "Componentes", topCopper: "Pistas frontales", bottomCopper: "Pistas traseras", pads: "Pads y pines", vias: "Vías y testpoints", outline: "Contorno", inner1: "INNER 1", inner2: "INNER 2", inner3: "INNER 3", inner4: "INNER 4", topSilk: "TOP SILK", bottomSilk: "BOTTOM SILK" };
+export function segmentLayerVisible(segment: { layer?: string; side?: string }, state: BoardLayerState): boolean {
+  if (segment.layer === "Edge.Cuts") return state.outline;
+  if (segment.layer === "F.SilkS") return state.topSilk;
+  if (segment.layer === "B.SilkS") return state.bottomSilk;
+  const match = segment.layer?.match(/^In([1-4])\.Cu$/);
+  if (match) return state[`inner${match[1]}` as BoardLayer];
+  if (segment.layer === "F.Cu") return state.topCopper;
+  if (segment.layer === "B.Cu") return state.bottomCopper;
+  return segment.side === "top" ? state.topCopper : segment.side === "bottom" ? state.bottomCopper : state.topCopper || state.bottomCopper;
+}
 export const BOARD_LAYER_KEYS = Object.keys(DEFAULT_BOARD_LAYERS) as BoardLayer[];
 const isGround = (net?: string) => /(?:^|[^a-z0-9])(?:[adp]?gnd|ground|vss)(?:$|[^a-z0-9])/i.test(net ?? "");
 type Props = {
@@ -310,18 +320,19 @@ export function Viewport({ board, layers = DEFAULT_BOARD_LAYERS, projectId, over
     }
     ctx.lineWidth = 1;
     const hotNet = current.selectedNet;
-    if (live.segments.length && (layerRef.current.topCopper || layerRef.current.bottomCopper)) {
+    if (live.segments.length) {
       ctx.beginPath();
       for (const segment of live.segments) {
         if (hotNet && segment.net === hotNet) continue;
-        if ((segment.side === "top" && !layerRef.current.topCopper) || (segment.side === "bottom" && !layerRef.current.bottomCopper) || (!segment.side && !(layerRef.current.topCopper && layerRef.current.bottomCopper))) continue;
-        if ((strictFace && !segment.side) || (segment.side && !acceptsSide(segment.side, current.side))) continue;
+        if (!segmentLayerVisible(segment, layerRef.current)) continue;
+        if (strictFace && !segment.layer?.match(/^In[1-4]\.Cu$/) && (!segment.side || !acceptsSide(segment.side, current.side))) continue;
         ctx.beginPath();
         const a = project(segment.x1, segment.y1);
         const b = project(segment.x2, segment.y2);
         ctx.moveTo(a.x, a.y);
         ctx.lineTo(b.x, b.y);
-        ctx.strokeStyle = isGround(segment.net) ? "#000000" : segment.side === "top" ? "#ed2024" : segment.side === "bottom" ? "#ff8c00" : current.side === "bottom" ? "#ff8c00" : "#ff2024";
+        
+        ctx.strokeStyle = isGround(segment.net) ? "#000000" : segment.layer?.startsWith("In") ? "#a678f5" : segment.layer?.endsWith("SilkS") ? "#c9d5de" : segment.side === "top" ? "#ed2024" : segment.side === "bottom" ? "#ff8c00" : current.side === "bottom" ? "#ff8c00" : "#ff2024";
         ctx.globalAlpha = 1;
         if (isGround(segment.net)) { ctx.shadowColor = "#071e4a"; ctx.shadowBlur = 12; ctx.lineWidth = 2.5; }
         ctx.stroke();
@@ -334,8 +345,8 @@ export function Viewport({ board, layers = DEFAULT_BOARD_LAYERS, projectId, over
         ctx.beginPath();
         const dots: { x: number; y: number }[] = [];
         for (const segment of live.segments) {
-          if ((segment.side === "top" && !layerRef.current.topCopper) || (segment.side === "bottom" && !layerRef.current.bottomCopper) || (!segment.side && !(layerRef.current.topCopper && layerRef.current.bottomCopper))) continue;
-          if ((strictFace && !segment.side) || segment.net !== hotNet || (segment.side && !acceptsSide(segment.side, current.side))) continue;
+          if (!segmentLayerVisible(segment, layerRef.current)) continue;
+          if (segment.net !== hotNet || (strictFace && !segment.layer?.match(/^In[1-4]\.Cu$/) && ((strictFace && !segment.side) || (segment.side && !acceptsSide(segment.side, current.side))))) continue;
           const a = project(segment.x1, segment.y1);
           const b = project(segment.x2, segment.y2);
           ctx.moveTo(a.x, a.y);

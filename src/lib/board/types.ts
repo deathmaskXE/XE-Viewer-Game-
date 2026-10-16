@@ -39,6 +39,8 @@ export type BoardSegment = {
   y2: number;
   /** Copper face, when provided by the source. */
   side?: Side;
+  /** Exact source PCB layer, if supplied. */
+  layer?: string;
   /** Net this copper belongs to, when the file says so. */
   net?: string;
 };
@@ -52,6 +54,8 @@ export type Board = {
   /** Boundary edges when the source does not provide a single closed polygon. */
   outlineSegments?: BoardSegment[];
   segments: BoardSegment[];
+  /** Source-defined layer names; empty for formats without layer geometry. */
+  availableLayers?: string[];
   parts: BoardPart[];
   pins: BoardPin[];
   nails: BoardNail[];
