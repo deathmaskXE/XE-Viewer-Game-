@@ -25,7 +25,7 @@ import { NexusViewer } from "@/components/bench/NexusViewer";
 import { DiagramPane } from "@/components/bench/DiagramPane";
 import { FolderGallery } from "@/components/bench/FolderGallery";
 import { TranslationPanel } from "@/components/bench/TranslationPanel";
-import { Viewport, type ViewportHandle, DEFAULT_BOARD_LAYERS, BOARD_LAYER_KEYS, BOARD_LAYER_NAMES, type BoardLayerState, type BoardLayer } from "@/components/bench/Viewport";
+import { Viewport, type ViewportHandle, DEFAULT_BOARD_LAYERS, BOARD_LAYER_KEYS, BOARD_LAYER_NAMES, layerKey, type BoardLayerState, type BoardLayer } from "@/components/bench/Viewport";
 import { prepare } from "@/lib/board/geometry";
 import { UNIT_PRESETS } from "@/lib/board/units";
 import type { Side } from "@/lib/board/types";
@@ -90,10 +90,19 @@ export function Bench() {
     else if (face === "front") setFrontLayers(p => ({...p,[key]:value}));
     else setRearLayers(p => ({...p,[key]:value}));
   };
-  const layerControls = (face: "front" | "rear") => <details className="border-b border-border bg-bg-elevated px-2 py-1 text-xs">
-    <summary className="cursor-pointer font-semibold">☷ CAPAS · {face === "front" ? "Frontal" : "Trasera"}</summary>
-    <div className="flex flex-wrap gap-x-3 gap-y-2 py-2">{BOARD_LAYER_KEYS.map(key => <label key={key} className="inline-flex items-center gap-1"><input type="checkbox" checked={(face === "front" ? frontLayers : rearLayers)[key]} onChange={e => setBoardLayer(face,key,e.target.checked)} />{BOARD_LAYER_NAMES[key]}{key.startsWith("inner") && board && !board.availableLayers?.includes(`In${key.slice(-1)}.Cu`) ? " (sin datos)" : ""}</label>)}</div>
-  </details>;
+  const layerControls = (face: "front" | "rear") => {
+    const available = board?.availableLayers ?? [];
+    const dynamic = [...new Set(available.map(layerKey))].filter(key => !BOARD_LAYER_KEYS.includes(key));
+    dynamic.sort((a,b) => {
+      const ai = /^inner(\d+)$/.exec(a), bi = /^inner(\d+)$/.exec(b);
+      return ai && bi ? Number(ai[1])-Number(bi[1]) : ai ? -1 : bi ? 1 : a.localeCompare(b);
+    });
+    const keys = [...BOARD_LAYER_KEYS, ...dynamic];
+    return <details className="border-b border-border bg-bg-elevated px-2 py-1 text-xs" open>
+      <summary className="cursor-pointer font-semibold">☷ CAPAS · {face === "front" ? "Frontal" : "Trasera"} ({dynamic.filter(k=>k.startsWith("inner")).length} INNER)</summary>
+      <div className="flex flex-wrap gap-x-3 gap-y-2 py-2">{keys.map(key => <label key={key} className="inline-flex items-center gap-1"><input type="checkbox" checked={(face === "front" ? frontLayers : rearLayers)[key] !== false} onChange={e => setBoardLayer(face,key,e.target.checked)} />{BOARD_LAYER_NAMES[key] ?? (key.startsWith("inner") ? `INNER ${key.slice(5)}` : key.replace(/^source:/,"CAPA "))}</label>)}</div>
+    </details>;
+  };
   const mirror = useBench((state) => state.mirror);
   const tool = useBench((state) => state.tool);
   const query = useBench((state) => state.query);

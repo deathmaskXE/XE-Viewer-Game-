@@ -111,15 +111,15 @@ function arcSegments(
  * Keep the original ID as well as the viewer alias so unsupported IDs are
  * inspectable instead of silently merging all geometry into TOP.
  */
+// XZZ copper IDs are sequential: 1=TOP, 2..9=INNER 1..8, 10=BOTTOM.
+// Preserve other identifiers rather than presenting them as fabricated copper.
 const XZZ_LAYERS: Record<number, string> = {
-  1: "F.Cu", 3: "In1.Cu", 5: "In2.Cu", 7: "In3.Cu",
-  8: "In4.Cu", 10: "B.Cu", 16: "XZZ.16", 17: "XZZ.17",
-  28: "Edge.Cuts",
+  1: "F.Cu", 10: "B.Cu", 16: "F.SilkS", 17: "B.SilkS", 28: "Edge.Cuts",
 };
 function sourceLayer(body: Uint8Array): string | undefined {
   if (body.length < 4) return undefined;
   const id = u32(body, 0);
-  return XZZ_LAYERS[id] ?? `XZZ.${id}`;
+  return XZZ_LAYERS[id] ?? (id >= 2 && id <= 9 ? `In${id - 1}.Cu` : `XZZ.${id}`);
 }
 function tagLayer(segment: BoardSegment, body: Uint8Array): BoardSegment {
   segment.layer = sourceLayer(body);

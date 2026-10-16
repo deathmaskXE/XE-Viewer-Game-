@@ -12,22 +12,25 @@ export type ViewportHandle = {
   panBy: (dx: number, dy: number) => void;
 };
 
-export type BoardLayer = "components" | "topCopper" | "bottomCopper" | "pads" | "vias" | "outline" | "inner1" | "inner2" | "inner3" | "inner4" | "topSilk" | "bottomSilk";
-export type BoardLayerState = Record<BoardLayer, boolean>;
-export const DEFAULT_BOARD_LAYERS: BoardLayerState = { components: true, topCopper: true, bottomCopper: true, pads: true, vias: true, outline: true, inner1: true, inner2: true, inner3: true, inner4: true, topSilk: true, bottomSilk: true };
-export const BOARD_LAYER_NAMES: Record<BoardLayer, string> = { components: "Componentes", topCopper: "Pistas frontales", bottomCopper: "Pistas traseras", pads: "Pads y pines", vias: "Vías y testpoints", outline: "Contorno", inner1: "INNER 1", inner2: "INNER 2", inner3: "INNER 3", inner4: "INNER 4", topSilk: "TOP SILK", bottomSilk: "BOTTOM SILK" };
-export function segmentLayerVisible(segment: { layer?: string; side?: string }, state: BoardLayerState): boolean {
-  if (segment.layer === "Edge.Cuts") return state.outline;
-  if (segment.layer?.startsWith("XZZ.")) return state.topCopper || state.bottomCopper;
-  if (segment.layer === "F.SilkS") return state.topSilk;
-  if (segment.layer === "B.SilkS") return state.bottomSilk;
-  const match = segment.layer?.match(/^In([1-4])\.Cu$/);
-  if (match) return state[`inner${match[1]}` as BoardLayer];
-  if (segment.layer === "F.Cu") return state.topCopper;
-  if (segment.layer === "B.Cu") return state.bottomCopper;
-  return segment.side === "top" ? state.topCopper : segment.side === "bottom" ? state.bottomCopper : state.topCopper || state.bottomCopper;
+export type BoardLayer = "components" | "topCopper" | "bottomCopper" | "pads" | "vias" | "outline" | `inner${number}` | "topSilk" | "bottomSilk" | `source:${string}`;
+export type BoardLayerState = Record<string, boolean>;
+export const DEFAULT_BOARD_LAYERS: BoardLayerState = { components: true, topCopper: true, bottomCopper: true, pads: true, vias: true, outline: true, topSilk: true, bottomSilk: true };
+export const BOARD_LAYER_NAMES: Record<string, string> = { components: "Componentes", topCopper: "TOP", bottomCopper: "BOTTOM", pads: "Pads y pines", vias: "Vías y testpoints", outline: "Contorno", topSilk: "TOP SILK", bottomSilk: "BOTTOM SILK" };
+export const BOARD_LAYER_KEYS: BoardLayer[] = ["components", "topCopper", "bottomCopper", "pads", "vias", "outline", "topSilk", "bottomSilk"];
+export function layerKey(layer: string): BoardLayer {
+  const match = /^In(\d+)\.Cu$/.exec(layer);
+  if (match) return `inner${Number(match[1])}`;
+  if (layer === "F.Cu") return "topCopper";
+  if (layer === "B.Cu") return "bottomCopper";
+  if (layer === "F.SilkS") return "topSilk";
+  if (layer === "B.SilkS") return "bottomSilk";
+  if (layer === "Edge.Cuts") return "outline";
+  return `source:${layer}`;
 }
-export const BOARD_LAYER_KEYS = Object.keys(DEFAULT_BOARD_LAYERS) as BoardLayer[];
+export function segmentLayerVisible(segment: { layer?: string; side?: string }, state: BoardLayerState): boolean {
+  if (segment.layer) return state[layerKey(segment.layer)] !== false;
+  return segment.side === "top" ? state.topCopper !== false : segment.side === "bottom" ? state.bottomCopper !== false : state.topCopper !== false || state.bottomCopper !== false;
+}
 const isGround = (net?: string) => /(?:^|[^a-z0-9])(?:[adp]?gnd|ground|vss)(?:$|[^a-z0-9])/i.test(net ?? "");
 type Props = {
   board: Board | null;
@@ -326,7 +329,7 @@ export function Viewport({ board, layers = DEFAULT_BOARD_LAYERS, projectId, over
       for (const segment of live.segments) {
         if (hotNet && segment.net === hotNet) continue;
         if (!segmentLayerVisible(segment, layerRef.current)) continue;
-        if (strictFace && !segment.layer?.match(/^In[1-4]\.Cu$/) && (!segment.side || !acceptsSide(segment.side, current.side))) continue;
+        if (strictFace && !segment.layer?.match(/^In\d+\.Cu$/) && (!segment.side || !acceptsSide(segment.side, current.side))) continue;
         ctx.beginPath();
         const a = project(segment.x1, segment.y1);
         const b = project(segment.x2, segment.y2);
@@ -347,7 +350,7 @@ export function Viewport({ board, layers = DEFAULT_BOARD_LAYERS, projectId, over
         const dots: { x: number; y: number }[] = [];
         for (const segment of live.segments) {
           if (!segmentLayerVisible(segment, layerRef.current)) continue;
-          if (segment.net !== hotNet || (strictFace && !segment.layer?.match(/^In[1-4]\.Cu$/) && ((strictFace && !segment.side) || (segment.side && !acceptsSide(segment.side, current.side))))) continue;
+          if (segment.net !== hotNet || (strictFace && !segment.layer?.match(/^In\d+\.Cu$/) && ((strictFace && !segment.side) || (segment.side && !acceptsSide(segment.side, current.side))))) continue;
           const a = project(segment.x1, segment.y1);
           const b = project(segment.x2, segment.y2);
           ctx.moveTo(a.x, a.y);
