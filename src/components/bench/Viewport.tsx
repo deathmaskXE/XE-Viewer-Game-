@@ -54,10 +54,10 @@ type Props = {
 
 const PAL = {
   bg: "#ffffff",
-  fill: "#596a43",
+  fill: "#77876a",
   outline: "#273322",
-  partTop: "#718358",
-  partBot: "#4f6140",
+  partTop: "#839473",
+  partBot: "#657756",
   pin: "#273747",
   pinBot: "#273747",
   nail: "#008a9e",
@@ -284,7 +284,7 @@ export function Viewport({ board, layers = DEFAULT_BOARD_LAYERS, projectId, over
       const selected = index === current.selectedPart;
       ctx.lineWidth = selected ? 2.5 : 1;
       const isIc = /^(?:U|IC)(?:\d|[_. -]\d|$)/i.test(part.name) || /(?:^|[^a-z0-9])(?:BGA|QFN|QFP|TQFP|LQFP|SOIC|SOP|SSOP|TSSOP|WSON|DFN)(?:[^a-z]|$)/i.test(part.device ?? "");
-      const componentColor = /^J\d/i.test(part.name) ? "#a8b2bd" : /^C\d/i.test(part.name) ? "#80502e" : /^R\d/i.test(part.name) ? "#101010" : isIc ? "#808080" : part.side === "bottom" ? PAL.partBot : PAL.partTop;
+      const componentColor = part.side === "bottom" ? PAL.partBot : PAL.partTop;
       ctx.strokeStyle = selected ? "#e11919" : componentColor;
       ctx.globalAlpha = 1;
       if (/^J\d/i.test(part.name)) {
@@ -325,36 +325,35 @@ export function Viewport({ board, layers = DEFAULT_BOARD_LAYERS, projectId, over
     ctx.lineWidth = 1;
     const hotNet = current.selectedNet;
     if (live.segments.length) {
+      // Batch visible traces into one canvas stroke. Avoid a separate GPU paint
+      // operation per segment; this is especially important for large boardviews.
       ctx.beginPath();
       for (const segment of live.segments) {
         if (hotNet && segment.net === hotNet) continue;
         if (!segmentLayerVisible(segment, layerRef.current)) continue;
         if (strictFace && !segment.layer?.match(/^In\d+\.Cu$/) && (!segment.side || !acceptsSide(segment.side, current.side))) continue;
-        ctx.beginPath();
         const a = project(segment.x1, segment.y1);
         const b = project(segment.x2, segment.y2);
+        if ((a.x < -4 && b.x < -4) || (a.x > w + 4 && b.x > w + 4) ||
+            (a.y < -4 && b.y < -4) || (a.y > h + 4 && b.y > h + 4)) continue;
         ctx.moveTo(a.x, a.y);
         ctx.lineTo(b.x, b.y);
-        
-        ctx.strokeStyle = "#000000";
-        ctx.globalAlpha = 1;
-        ctx.shadowBlur = 0; ctx.lineWidth = 1.8;
-        ctx.stroke();
-        ctx.shadowBlur = 0; ctx.lineWidth = 1;
       }
+      ctx.strokeStyle = "#111811";
       ctx.globalAlpha = 1;
-        // Missing layer metadata uses the active face as a visual fallback.
+      ctx.shadowBlur = 0;
+      ctx.lineWidth = 1.8;
+      ctx.stroke();
+      ctx.lineWidth = 1;
 
       if (hotNet && !selectedGround) {
         ctx.beginPath();
-        const dots: { x: number; y: number }[] = [];
         for (const segment of live.segments) {
           if (segment.net !== hotNet) continue;
           const a = project(segment.x1, segment.y1);
           const b = project(segment.x2, segment.y2);
           ctx.moveTo(a.x, a.y);
           ctx.lineTo(b.x, b.y);
-          dots.push(a, b);
         }
         // Continuous solid red selection: no endpoint dots or glow.
         ctx.strokeStyle = "#e11919";
@@ -562,7 +561,7 @@ export function Viewport({ board, layers = DEFAULT_BOARD_LAYERS, projectId, over
   };
   useEffect(() => {
     if (!syncedPan || syncedPan.source === panSource) return;
-    cam.current.x += (latest.current.mirror ? syncedPan.dx : -syncedPan.dx) / cam.current.zoom;
+    cam.current.x -= syncedPan.dx / cam.current.zoom;
     cam.current.y += syncedPan.dy / cam.current.zoom;
     userMoved.current = true;
     requestDraw();
@@ -592,7 +591,7 @@ export function Viewport({ board, layers = DEFAULT_BOARD_LAYERS, projectId, over
     },
     panBy: (dx, dy) => {
       const mirrorOn = latest.current.mirror;
-      cam.current.x += (mirrorOn ? dx : -dx) / cam.current.zoom;
+      cam.current.x -= dx / cam.current.zoom;
       cam.current.y += dy / cam.current.zoom;
       userMoved.current = true;
       emitPan(dx, dy);
@@ -859,7 +858,7 @@ export function Viewport({ board, layers = DEFAULT_BOARD_LAYERS, projectId, over
             const mirrorOn = latest.current.mirror;
             const movedX = point.sx - active.lastX;
             const movedY = point.sy - active.lastY;
-            cam.current.x -= (mirrorOn ? -movedX : movedX) / cam.current.zoom;
+            cam.current.x -= movedX / cam.current.zoom;
             cam.current.y += movedY / cam.current.zoom;
             emitPan(movedX, movedY);
             requestDraw();
