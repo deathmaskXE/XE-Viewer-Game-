@@ -47,7 +47,7 @@ export function parseKicad(name: string, text: string): Board {
   };
   const graphic = (node: Node, transform: (p: BoardPoint) => BoardPoint, copper = false) => {
     const kind = str(node, 0), boundary = str(child(node, "layer"), 1) === "Edge.Cuts";
-    if (!boundary && !copper && !standalone && !/^(F|B)\.SilkS$/.test(str(child(node,"layer"),1))) return;
+    if (!boundary && !copper && !standalone && !/^(F|B)\.(SilkS|Fab|CrtYd)$/.test(str(child(node,"layer"),1))) return;
     const a = point(child(node, "start")), b = point(child(node, "end"));
     let points: BoardPoint[] = [];
     if (kind.endsWith("line") || kind === "segment") points = [a, b];
@@ -64,8 +64,8 @@ export function parseKicad(name: string, text: string): Board {
   };
   for (const footprint of [...children(root, "footprint"), ...children(root, "module")]) {
     const at = child(footprint, "at"), origin = point(at), angle = -number(at, 3)*Math.PI/180;
-    const transform = (p: BoardPoint) => ({x:origin.x+p.x*Math.cos(angle)-p.y*Math.sin(angle),y:origin.y+p.x*Math.sin(angle)+p.y*Math.cos(angle)});
     const side: Side = str(child(footprint,"layer"),1).startsWith("B.") ? "bottom" : "top";
+    const transform = (p: BoardPoint) => { const x = side === "bottom" ? -p.x : p.x; return {x:origin.x+x*Math.cos(angle)-p.y*Math.sin(angle),y:origin.y+x*Math.sin(angle)+p.y*Math.cos(angle)}; };
     const properties = children(footprint,"property"), texts=children(footprint,"fp_text");
     const ref = properties.find(p=>str(p,1)==="Reference"), reference=texts.find(p=>str(p,1)==="reference");
     const value = properties.find(p=>str(p,1)==="Value"), oldValue=texts.find(p=>str(p,1)==="value");

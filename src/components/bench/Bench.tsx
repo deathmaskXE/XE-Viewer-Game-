@@ -379,12 +379,13 @@ export function Bench() {
           event.target.value = "";
         }}
       />
-      <div className="xe-brand-bar"><h1 className="xe-neon-title">XE VIEWER</h1><div className="xe-brand-tabs" role="tablist" aria-label="Elegir visor">
-        <Button className="xe-viewer-tab" role="tab" aria-selected={viewer === "xe"} variant={viewer === "xe" ? "primary" : "ghost"} onClick={() => setViewer("xe")}>XE VIEWER</Button>
-        <Button className="xe-viewer-tab" role="tab" aria-selected={viewer === "nexus"} variant={viewer === "nexus" ? "primary" : "ghost"} onClick={() => { setNexusOpened(true); setViewer("nexus"); }}>NEXUS</Button>
-
-
-      </div></div>
+      <div className="xe-brand-banner">
+        <h1 className="xe-neon-title">XE VIEWER</h1>
+        <div className="xe-brand-tabs" role="tablist" aria-label="Elegir visor">
+          <Button className="xe-viewer-tab" role="tab" aria-selected={viewer === "xe"} variant={viewer === "xe" ? "primary" : "ghost"} onClick={() => setViewer("xe")}>XE VIEWER</Button>
+          <Button className="xe-viewer-tab" role="tab" aria-selected={viewer === "nexus"} variant={viewer === "nexus" ? "primary" : "ghost"} onClick={() => { setNexusOpened(true); setViewer("nexus"); }}>NEXUS</Button>
+        </div>
+      </div>
       {nexusOpened ? <div className={viewer === "nexus" ? "flex min-h-0 flex-1 flex-col" : "hidden"}><NexusViewer /></div> : null}
       <div className={viewer === "xe" ? "flex min-h-0 flex-1 flex-col" : "hidden"}>
       <header className="xe-header flex flex-wrap items-center gap-2 border-b border-border px-3 py-2">

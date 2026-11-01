@@ -416,8 +416,9 @@ export function Viewport({ board, layers = DEFAULT_BOARD_LAYERS, projectId, over
       ctx.shadowBlur = 0; ctx.fillStyle = "#000000";
       ctx.fillRect(p.x - s / 2, p.y - s / 2, s, s);
       ctx.restore();
-      if (live.format === "KiCad huella" && pin.name && cam.current.zoom * live.unitsPerMm > 12) {
+      if (live.format.startsWith("KiCad") && pin.name && cam.current.zoom * live.unitsPerMm > 12) {
         ctx.font = `500 11px "IBM Plex Mono", monospace`;
+        ctx.fillStyle = "#d7f7ff";
         ctx.textAlign = "left"; ctx.textBaseline = "bottom";
         ctx.fillText(pin.name, p.x + s / 2 + 3, p.y - s / 2 - 2);
       }
