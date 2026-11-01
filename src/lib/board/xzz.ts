@@ -215,6 +215,8 @@ export function parseXzz(name: string, source: Uint8Array): Board {
     outlineSegments: outlinePoints.filter((_, index) => index % 2 === 0).map((a, index) => { const b = outlinePoints[index * 2 + 1]; return { x1: a.x, y1: a.y, x2: b.x, y2: b.y }; }),
     segments,
     availableLayers: [...new Set(segments.map(s => s.layer).filter((layer): layer is string => !!layer))],
+    // This format explicitly defines 1=TOP, 2..9=INNER and 10=BOTTOM.
+    copperStack: ["F.Cu", ...Array.from({length:8}, (_, i) => `In${i+1}.Cu`), "B.Cu"].filter(layer => segments.some(s => s.layer === layer)),
     parts,
     pins,
     nails: [],

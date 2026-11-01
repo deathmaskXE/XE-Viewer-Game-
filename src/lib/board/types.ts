@@ -56,6 +56,8 @@ export type Board = {
   segments: BoardSegment[];
   /** Source-defined layer names; empty for formats without layer geometry. */
   availableLayers?: string[];
+  /** Ordered physical copper stack, only when supplied by the file format. */
+  copperStack?: string[];
   parts: BoardPart[];
   pins: BoardPin[];
   nails: BoardNail[];

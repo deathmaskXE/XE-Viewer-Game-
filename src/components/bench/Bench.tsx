@@ -97,11 +97,13 @@ export function Bench() {
       const ai = /^inner(\d+)$/.exec(a), bi = /^inner(\d+)$/.exec(b);
       return ai && bi ? Number(ai[1])-Number(bi[1]) : ai ? -1 : bi ? 1 : a.localeCompare(b);
     });
-    // Copper stack is ordered from the observer's face toward the opposite face.
-    // Keep every layer accessible from both faces; only ordering changes.
-    const copper: BoardLayer[] = ["topCopper", ...dynamic.filter(key => /^inner\d+$/.test(key)), "bottomCopper"];
+    // Use physical stack metadata when known. Unknown layers stay separate;
+    // never assign them an invented INNER position.
     const availableKeys = new Set(available.map(layerKey));
-    const orderedCopper = copper.filter(key => availableKeys.has(key) || key === "topCopper" || key === "bottomCopper");
+    const sourceStack = board?.copperStack?.map(layerKey) ?? [];
+    const knownStack = [...new Set(sourceStack)].filter(key => availableKeys.has(key));
+    const fallback = ["topCopper", ...dynamic.filter(key => /^inner\d+$/.test(key)), "bottomCopper"];
+    const orderedCopper: BoardLayer[] = (knownStack.length ? knownStack : fallback).filter(key => availableKeys.has(key) || key === "topCopper" || key === "bottomCopper");
     if (face === "rear") orderedCopper.reverse();
     const extras = dynamic.filter(key => !/^inner\d+$/.test(key));
     const keys: BoardLayer[] = [
@@ -111,7 +113,7 @@ export function Bench() {
     ];
     const state = face === "front" ? frontLayers : rearLayers;
     return <details className="border-b border-border bg-bg-elevated px-2 py-1 text-xs" open>
-      <summary className="cursor-pointer font-semibold">☷ CAPAS · {face === "front" ? "TOP → BOTTOM" : "BOTTOM → TOP"} ({dynamic.filter(k=>k.startsWith("inner")).length} INNER)</summary>
+      <summary className="cursor-pointer font-semibold">☷ CAPAS · {face === "front" ? "TOP → BOTTOM" : "BOTTOM → TOP"} ({orderedCopper.filter(k=>k.startsWith("inner")).length} INNER)</summary>
       <div className="flex flex-wrap gap-x-3 gap-y-2 py-2">{keys.map(key => <label key={key} className="inline-flex items-center gap-1"><input type="checkbox" checked={state[key] !== false} onChange={e => setBoardLayer(face,key,e.target.checked)} />{BOARD_LAYER_NAMES[key] ?? (key.startsWith("inner") ? `INNER ${key.slice(5)}` : key.replace(/^source:/,"CAPA "))}</label>)}</div>
     </details>;
   };
