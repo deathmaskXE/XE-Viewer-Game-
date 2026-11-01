@@ -342,7 +342,9 @@ export function Viewport({ board, layers = DEFAULT_BOARD_LAYERS, projectId, over
       ctx.strokeStyle = "#111811";
       ctx.globalAlpha = 1;
       ctx.shadowBlur = 0;
-      ctx.lineWidth = 1.8;
+      ctx.lineCap = "round";
+      ctx.lineJoin = "round";
+      ctx.lineWidth = Math.max(0.55, Math.min(1.35, cam.current.zoom * 0.16));
       ctx.stroke();
       ctx.lineWidth = 1;
 
@@ -360,37 +362,14 @@ export function Viewport({ board, layers = DEFAULT_BOARD_LAYERS, projectId, over
         ctx.lineCap = "round";
         ctx.lineJoin = "round";
         ctx.shadowBlur = 0;
-        ctx.lineWidth = 5;
+        ctx.lineWidth = Math.max(1.6, Math.min(3.4, cam.current.zoom * 0.32));
         ctx.stroke();
         ctx.lineWidth = 1;
       }
     }
 
-    // Connection guides are electrical links, never inferred copper routes.
-    if (hotNet && !selectedGround && !live.segments.some(segment => segment.net === hotNet)) {
-      const endpoints = [...live.pins.filter(pin => pin.net === hotNet && acceptsSide(pin.side, current.side)), ...live.nails.filter(nail => nail.net === hotNet && acceptsSide(nail.side, current.side))];
-      const unique = [...new Map(endpoints.map(point => [`${point.x},${point.y}`, point])).values()];
-      const anchor = unique.find(point => "part" in point && point.part === current.selectedPart) ?? unique[0];
-      if (anchor && unique.length > 1) {
-        const a = project(anchor.x, anchor.y);
-        ctx.save();
-        ctx.strokeStyle = PAL.trace;
-        ctx.lineWidth = 1.8;
-        ctx.setLineDash([]);
-        ctx.beginPath();
-        for (const endpoint of unique) {
-          if (endpoint === anchor) continue;
-          const b = project(endpoint.x, endpoint.y);
-          ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y);
-        }
-        ctx.strokeStyle = "#e11919";
-        ctx.shadowColor = "transparent"; ctx.shadowBlur = 0;
-        ctx.lineWidth = 5; ctx.stroke();
-        ctx.shadowBlur = 0; ctx.strokeStyle = PAL.trace;
-        ctx.lineWidth = 1.8; ctx.stroke();
-        ctx.restore();
-      }
-    }
+    // Do not draw synthetic straight-line connections between pads. They are
+    // connectivity hints, not real copper geometry, and misrepresent routing.
 
     if (layerRef.current.pads) for (let index = 0; index < live.pins.length; index++) {
       const pin = live.pins[index];
@@ -401,9 +380,9 @@ export function Viewport({ board, layers = DEFAULT_BOARD_LAYERS, projectId, over
       const s = Math.max(1.4, Math.min(14, 8 * cam.current.zoom));
       ctx.globalAlpha = 1;
       ctx.save();
-      ctx.shadowColor = isGround(pin.net) ? "#071e4a" : "#ffffff"; ctx.shadowBlur = isGround(pin.net) ? 12 : 6;
+      ctx.shadowColor = "transparent"; ctx.shadowBlur = 0;
       ctx.strokeStyle = hot ? "#e11919" : "#1a2417";
-      ctx.lineWidth = hot ? 3 : 1.5;
+      ctx.lineWidth = hot ? 1.8 : 0.85;
       ctx.strokeRect(p.x - s / 2, p.y - s / 2, s, s);
       ctx.shadowBlur = 0; ctx.fillStyle = "#000000";
       ctx.fillRect(p.x - s / 2, p.y - s / 2, s, s);
