@@ -54,17 +54,17 @@ type Props = {
 
 const PAL = {
   bg: "#ffffff",
-  fill: "#172d4a",
-  outline: "#293b4a",
-  partTop: "#244e65",
-  partBot: "#26788c",
+  fill: "#596a43",
+  outline: "#273322",
+  partTop: "#718358",
+  partBot: "#4f6140",
   pin: "#273747",
   pinBot: "#273747",
   nail: "#008a9e",
   hot: "#ffffff",
   net: "#008b9f",
-  trace: "#00f5ff",
-  text: "#233445",
+  trace: "#ef2525",
+  text: "#141b11",
   dim: "rgba(176,216,229,0.28)",
 };
 
@@ -272,7 +272,7 @@ export function Viewport({ board, layers = DEFAULT_BOARD_LAYERS, projectId, over
     const underlay = current.overlays.some((overlay) => overlay.visible && !overlay.above);
     ctx.lineWidth = 1;
     if (layerRef.current.components) live.parts.forEach((part, index) => {
-      if (!acceptsSide(part.side, current.side)) return;
+      if (!acceptsSide(part.side, current.side) || /^(?:v[ií]a|via)(?:\s*\d+)?$/i.test(part.name.trim())) return;
       const box = ready.parts[index];
       if (!box) return;
       const a = project(box.minX, box.maxY);
@@ -285,7 +285,7 @@ export function Viewport({ board, layers = DEFAULT_BOARD_LAYERS, projectId, over
       ctx.lineWidth = selected ? 2.5 : 1;
       const isIc = /^(?:U|IC)(?:\d|[_. -]\d|$)/i.test(part.name) || /(?:^|[^a-z0-9])(?:BGA|QFN|QFP|TQFP|LQFP|SOIC|SOP|SSOP|TSSOP|WSON|DFN)(?:[^a-z]|$)/i.test(part.device ?? "");
       const componentColor = /^J\d/i.test(part.name) ? "#a8b2bd" : /^C\d/i.test(part.name) ? "#80502e" : /^R\d/i.test(part.name) ? "#101010" : isIc ? "#808080" : part.side === "bottom" ? PAL.partBot : PAL.partTop;
-      ctx.strokeStyle = selected ? "#008cff" : componentColor;
+      ctx.strokeStyle = selected ? "#e11919" : componentColor;
       ctx.globalAlpha = 1;
       if (/^J\d/i.test(part.name)) {
         const silver = ctx.createLinearGradient(left, top, left, top + Math.max(1, bh));
@@ -336,9 +336,9 @@ export function Viewport({ board, layers = DEFAULT_BOARD_LAYERS, projectId, over
         ctx.moveTo(a.x, a.y);
         ctx.lineTo(b.x, b.y);
         
-        ctx.strokeStyle = isGround(segment.net) ? "#000000" : segment.layer?.startsWith("In") ? "#a678f5" : segment.layer?.endsWith("SilkS") ? "#c9d5de" : segment.side === "top" ? "#ed2024" : segment.side === "bottom" ? "#ff8c00" : current.side === "bottom" ? "#ff8c00" : "#ff2024";
+        ctx.strokeStyle = "#000000";
         ctx.globalAlpha = 1;
-        if (isGround(segment.net)) { ctx.shadowColor = "#071e4a"; ctx.shadowBlur = 12; ctx.lineWidth = 2.5; }
+        ctx.shadowBlur = 0; ctx.lineWidth = 1.8;
         ctx.stroke();
         ctx.shadowBlur = 0; ctx.lineWidth = 1;
       }
@@ -357,19 +357,13 @@ export function Viewport({ board, layers = DEFAULT_BOARD_LAYERS, projectId, over
           ctx.lineTo(b.x, b.y);
           dots.push(a, b);
         }
-        ctx.strokeStyle = "#071e4a";
-        ctx.shadowColor = "#00f5ff"; ctx.shadowBlur = 8;
-        ctx.lineWidth = 6; ctx.stroke();
+        // Continuous solid red selection: no endpoint dots or glow.
+        ctx.strokeStyle = "#e11919";
+        ctx.lineCap = "round";
+        ctx.lineJoin = "round";
         ctx.shadowBlur = 0;
-        ctx.strokeStyle = PAL.trace;
-        ctx.lineWidth = 2.5; ctx.stroke();
-        ctx.fillStyle = PAL.trace;
-        const radius = Math.max(2.2, Math.min(5, 3.2));
-        for (const dot of dots) {
-          ctx.beginPath();
-          ctx.arc(dot.x, dot.y, radius, 0, Math.PI * 2);
-          ctx.fill();
-        }
+        ctx.lineWidth = 5;
+        ctx.stroke();
         ctx.lineWidth = 1;
       }
     }
@@ -391,8 +385,8 @@ export function Viewport({ board, layers = DEFAULT_BOARD_LAYERS, projectId, over
           const b = project(endpoint.x, endpoint.y);
           ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y);
         }
-        ctx.strokeStyle = "#071e4a";
-        ctx.shadowColor = "#00f5ff"; ctx.shadowBlur = 8;
+        ctx.strokeStyle = "#e11919";
+        ctx.shadowColor = "transparent"; ctx.shadowBlur = 0;
         ctx.lineWidth = 5; ctx.stroke();
         ctx.shadowBlur = 0; ctx.strokeStyle = PAL.trace;
         ctx.lineWidth = 1.8; ctx.stroke();
@@ -410,7 +404,7 @@ export function Viewport({ board, layers = DEFAULT_BOARD_LAYERS, projectId, over
       ctx.globalAlpha = 1;
       ctx.save();
       ctx.shadowColor = isGround(pin.net) ? "#071e4a" : "#ffffff"; ctx.shadowBlur = isGround(pin.net) ? 12 : 6;
-      ctx.strokeStyle = hot ? (selectedGround ? "#000000" : "#008cff") : "#f4fcff";
+      ctx.strokeStyle = hot ? "#e11919" : "#1a2417";
       ctx.lineWidth = hot ? 3 : 1.5;
       ctx.strokeRect(p.x - s / 2, p.y - s / 2, s, s);
       ctx.shadowBlur = 0; ctx.fillStyle = "#000000";
@@ -420,7 +414,7 @@ export function Viewport({ board, layers = DEFAULT_BOARD_LAYERS, projectId, over
         ctx.font = `500 11px "IBM Plex Mono", monospace`;
         ctx.fillStyle = "#000000";
         ctx.textAlign = "left"; ctx.textBaseline = "bottom";
-        ctx.fillText(pin.name, p.x + s / 2 + 3, p.y - s / 2 - 2);
+        if (!/^(?:v[ií]a|via)$/i.test(pin.name.trim())) ctx.fillText(pin.name, p.x + s / 2 + 3, p.y - s / 2 - 2);
 
       }
     }
@@ -439,7 +433,7 @@ export function Viewport({ board, layers = DEFAULT_BOARD_LAYERS, projectId, over
       ctx.closePath();
       ctx.save();
       ctx.shadowColor = isGround(nail.net) ? "#071e4a" : "#ffffff"; ctx.shadowBlur = isGround(nail.net) ? 12 : 6;
-      ctx.strokeStyle = hot ? (selectedGround ? "#000000" : "#008cff") : "#f4fcff";
+      ctx.strokeStyle = hot ? "#e11919" : "#1a2417";
       ctx.lineWidth = hot ? 3 : 1.5; ctx.stroke();
       ctx.shadowBlur = 0; ctx.fillStyle = "#000000"; ctx.fill();
       ctx.restore();
