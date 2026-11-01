@@ -416,7 +416,9 @@ export function Viewport({ board, layers = DEFAULT_BOARD_LAYERS, projectId, over
         SW2: ["GND", "/13", "+1V8", "/15", "NET-(R21-PAD2)"],
       };
       const normalizedNet = (pin.net || "").trim().toUpperCase();
-      if (owner && targetNets[owner]?.includes(normalizedNet)) {
+      const padName = (pin.name || "").trim().toUpperCase();
+      const isB2PotPad = (owner === "SW1" || owner === "SW2") && (padName === "B2A" || padName === "B2B");
+      if (owner && (targetNets[owner]?.includes(normalizedNet) || isB2PotPad)) {
         ctx.save();
         ctx.beginPath();
         ctx.arc(p.x, p.y, Math.max(9, Math.min(22, s * 1.15)), 0, Math.PI * 2);
