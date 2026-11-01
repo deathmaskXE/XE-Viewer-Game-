@@ -166,7 +166,8 @@ test("KiCad reads rotated footprints, nets, vias and Edge.Cuts in millimeters", 
   const board = await parseBoard("controller.kicad_pcb", new TextEncoder().encode(source));
   assert.equal(board.format, "KiCad");
   assert.equal(board.parts[0].name, "U1");
-  assert.equal(board.pins.length, 3);
+  assert.equal(board.pins.length, 2);
+  assert.equal(board.nails.length, 1); // Vía física sin etiqueta artificial
   assert.equal(board.pins[0].net, "GND");
   assert.equal(board.pins[1].side, "both");
   assert.ok(Math.abs(board.pins[0].x / board.unitsPerMm - 10) < 0.00001);

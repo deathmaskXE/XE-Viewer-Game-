@@ -343,6 +343,34 @@ export function Viewport({ board, layers = DEFAULT_BOARD_LAYERS, projectId, over
         ctx.shadowBlur = 0; ctx.lineWidth = 1;
       }
       ctx.globalAlpha = 1;
+      // KiCad: etiquetas de redes fijas sobre las pistas visibles, sin depender del cursor.
+      // Una etiqueta por red y celda de pantalla evita miles de textos superpuestos.
+      if (live.format.startsWith("KiCad") && cam.current.zoom * live.unitsPerMm >= 4) {
+        const placed = new Set<string>();
+        ctx.save();
+        ctx.font = '500 10px "IBM Plex Mono", monospace';
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        for (const segment of live.segments) {
+          if (!segment.net || segment.net.toLowerCase() === "via") continue;
+          if (!segment.layer?.endsWith(".Cu") || !segmentLayerVisible(segment, layerRef.current)) continue;
+          if (strictFace && !segment.layer.match(/^In\d+\.Cu$/) && (!segment.side || !acceptsSide(segment.side, current.side))) continue;
+          const a = project(segment.x1, segment.y1), b = project(segment.x2, segment.y2);
+          const x = (a.x + b.x) / 2, y = (a.y + b.y) / 2;
+          if (x < 35 || x > w - 35 || y < 12 || y > h - 12) continue;
+          if (Math.hypot(b.x - a.x, b.y - a.y) < 24) continue;
+          const key = `${segment.net}:${Math.floor(x / 180)}:${Math.floor(y / 95)}`;
+          if (placed.has(key)) continue;
+          placed.add(key);
+          const label = segment.net;
+          const textWidth = ctx.measureText(label).width;
+          ctx.fillStyle = "rgba(228,234,240,0.92)";
+          ctx.fillRect(x - textWidth / 2 - 3, y - 7, textWidth + 6, 14);
+          ctx.fillStyle = "#000000";
+          ctx.fillText(label, x, y);
+        }
+        ctx.restore();
+      }
         // Missing layer metadata uses the active face as a visual fallback.
 
       if (hotNet && !selectedGround) {
@@ -416,11 +444,15 @@ export function Viewport({ board, layers = DEFAULT_BOARD_LAYERS, projectId, over
       ctx.shadowBlur = 0; ctx.fillStyle = "#000000";
       ctx.fillRect(p.x - s / 2, p.y - s / 2, s, s);
       ctx.restore();
-      if (live.format.startsWith("KiCad") && pin.name && cam.current.zoom * live.unitsPerMm > 12) {
+      if (live.format.startsWith("KiCad") && pin.name && cam.current.zoom * live.unitsPerMm > 5) {
         ctx.font = `500 11px "IBM Plex Mono", monospace`;
-        ctx.fillStyle = "#d7f7ff";
+        ctx.fillStyle = "#000000";
         ctx.textAlign = "left"; ctx.textBaseline = "bottom";
         ctx.fillText(pin.name, p.x + s / 2 + 3, p.y - s / 2 - 2);
+        if (pin.net && pin.net.toLowerCase() !== "via") {
+          ctx.font = `500 10px "IBM Plex Mono", monospace`;
+          ctx.fillText(pin.net, p.x + s / 2 + 3, p.y + 11);
+        }
       }
     }
     ctx.globalAlpha = 1;

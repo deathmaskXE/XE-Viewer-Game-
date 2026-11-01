@@ -74,7 +74,7 @@ export function parseKicad(name: string, text: string): Board {
     for(const pad of children(footprint,"pad")) { const position=convert(transform(point(child(pad,"at")))); const layers=child(pad,"layers"); const both=layers.some(p=>p==="*.Cu")||str(pad,2)==="thru_hole"; board.pins.push({...position,name:str(pad,1),part:index,net:netName(pad),side:both?"both":side}); }
     for(const item of footprint) if(Array.isArray(item)&&str(item,0).startsWith("fp_")) graphic(item,transform);
   }
-  for(const item of root) if(Array.isArray(item)) { const kind=str(item,0); if(kind.startsWith("gr_")) graphic(item,p=>p); else if(kind==="segment"||kind==="arc") graphic(item,p=>p,true); else if(kind==="via") board.pins.push({...convert(point(child(item,"at"))),part:-1,name:"Vía",net:netName(item),side:"both"}); }
+  for(const item of root) if(Array.isArray(item)) { const kind=str(item,0); if(kind.startsWith("gr_")) graphic(item,p=>p); else if(kind==="segment"||kind==="arc") graphic(item,p=>p,true); else if(kind==="via") { const pos=convert(point(child(item,"at"))); board.nails.push({...pos,net:netName(item),side:"both",probe:0}); } }
   board.availableLayers = Array.from(new Set(board.segments.map(segment => segment.layer).filter((layer): layer is string => !!layer && layer !== "Edge.Cuts")));
   board.outline=largestClosedContour(board.outlineSegments!.flatMap(e=>[{x:e.x1,y:e.y1},{x:e.x2,y:e.y2}]));
   if(!board.parts.length&&!board.pins.length&&!board.segments.length) throw new Error("La placa KiCad no contiene geometría visible.");

@@ -9,16 +9,16 @@
   --font-sans: "IBM Plex Sans", "Liberation Sans", sans-serif;
   --font-mono: "IBM Plex Mono", "Liberation Mono", ui-monospace, monospace;
 
-  --color-bg: #111820;
-  --color-bg-elevated: #202b39;
-  --color-bg-subtle: #2b394b;
-  --color-fg: #e6f5ff;
-  --color-muted: #9cb5c7;
-  --color-subtle: #91aabd;
-  --color-primary: #00eaff;
-  --color-primary-fg: #061627;
-  --color-accent: #2365e8;
-  --color-border: #40536b;
+  --color-bg: #101317;
+  --color-bg-elevated: #1b222b;
+  --color-bg-subtle: #252e38;
+  --color-fg: #e7ebf0;
+  --color-muted: #a3afbc;
+  --color-subtle: #8997a6;
+  --color-primary: #7298b9;
+  --color-primary-fg: #101820;
+  --color-accent: #456b91;
+  --color-border: #354353;
   --color-danger: #ff5970;
 
   --radius-control: 10px;
@@ -56,7 +56,7 @@
 }
 
 .xe-header {
-  background: linear-gradient(110deg, #222c39 0%, #1a3469 48%, #15222f 100%);
+  background: linear-gradient(110deg, #202831 0%, #26384a 48%, #1b242e 100%);
   box-shadow: inset 0 -1px 0 rgba(91, 220, 241, .12);
 }
 
@@ -68,7 +68,7 @@
   flex: none;
   border: 1px solid rgba(97, 228, 246, .5);
   border-radius: 10px;
-  background: linear-gradient(145deg, #253b55, #00eaff 65%, #1648a4);
+  background: linear-gradient(145deg, #253340, #7698b0 65%, #314e69);
   box-shadow: inset 0 1px 0 rgba(225, 250, 255, .24), 0 0 18px rgba(32, 191, 219, .12);
   color: #073342;
   font-weight: 600;
@@ -76,11 +76,11 @@
 }
 
 .xe-sidebar {
-  background: linear-gradient(180deg, #263446, #151e29 65%);
+  background: linear-gradient(180deg, #222c36, #151a21 65%);
 }
 
 .xe-inspector {
-  background: linear-gradient(180deg, #263446, #151e29 65%);
+  background: linear-gradient(180deg, #222c36, #151a21 65%);
 }
 
 .xe-header button[aria-pressed="true"] {
@@ -194,11 +194,11 @@ nav { padding-bottom: env(safe-area-inset-bottom); }
 }
 
 .xe-brand-banner { flex-shrink:0; text-align:center; padding:14px 12px 12px; background:linear-gradient(180deg,#071723,#0b202c); border-bottom:1px solid #175669; }
-.xe-neon-title { margin:0 0 12px; font-size:clamp(30px,4.4vw,58px); font-weight:900; line-height:1.12; letter-spacing:.15em; color:#eaffff; text-shadow:0 0 5px #00eaff,0 0 13px #00eaff,0 0 30px #00aaff,0 0 55px #0077ff; }
+.xe-neon-title { margin:0 0 12px; font-size:clamp(30px,4.4vw,58px); font-weight:900; line-height:1.12; letter-spacing:.15em; color:#eaffff; text-shadow:0 0 5px #7298b9,0 0 13px #7298b9,0 0 30px #00aaff,0 0 55px #0077ff; }
 .xe-brand-tabs { display:flex; justify-content:center; gap:12px; }
 .xe-brand-tabs .xe-viewer-tab { min-width:130px; }
 
 /* Black work surfaces for boardviews, overlays, PDFs and diagrams. */
 .xe-workspace-black, .xe-workspace-black canvas { background-color: #000 !important; }
 .xe-brand-banner { background: linear-gradient(120deg,#18232f,#173e9c 55%,#18232f); }
-.xe-neon-title { color:#eaffff; text-shadow:0 0 7px #00eaff,0 0 22px #00eaff,0 0 42px #007fff; }
+.xe-neon-title { color:#eaffff; text-shadow:0 0 7px #7298b9,0 0 22px #7298b9,0 0 42px #007fff; }
