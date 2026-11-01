@@ -202,3 +202,8 @@ nav { padding-bottom: env(safe-area-inset-bottom); }
 .xe-workspace-black, .xe-workspace-black canvas { background-color: #000 !important; }
 .xe-brand-banner { background: linear-gradient(120deg,#18232f,#173e9c 55%,#18232f); }
 .xe-neon-title { color:#eaffff; text-shadow:0 0 7px #7298b9,0 0 22px #7298b9,0 0 42px #007fff; }
+
+/* Superficies de trabajo blancas y diseño sobrio */
+.xe-workspace-black, .xe-workspace-black canvas { background-color: #fff !important; }
+.xe-brand-banner { background: linear-gradient(110deg,#202a34,#2b3948); border-bottom:1px solid #465769; }
+.xe-neon-title { color:#f5f7fa; text-shadow:0 1px 2px #101820,0 0 10px rgba(148,177,202,.30); letter-spacing:.10em; }

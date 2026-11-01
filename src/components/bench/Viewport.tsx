@@ -53,18 +53,18 @@ type Props = {
 };
 
 const PAL = {
-  bg: "#000000",
+  bg: "#ffffff",
   fill: "#172d4a",
-  outline: "#000000",
+  outline: "#293b4a",
   partTop: "#244e65",
   partBot: "#26788c",
-  pin: "#000000",
-  pinBot: "#000000",
+  pin: "#273747",
+  pinBot: "#273747",
   nail: "#008a9e",
   hot: "#ffffff",
   net: "#008b9f",
   trace: "#00f5ff",
-  text: "#000000",
+  text: "#233445",
   dim: "rgba(176,216,229,0.28)",
 };
 
@@ -343,34 +343,6 @@ export function Viewport({ board, layers = DEFAULT_BOARD_LAYERS, projectId, over
         ctx.shadowBlur = 0; ctx.lineWidth = 1;
       }
       ctx.globalAlpha = 1;
-      // KiCad: etiquetas de redes fijas sobre las pistas visibles, sin depender del cursor.
-      // Una etiqueta por red y celda de pantalla evita miles de textos superpuestos.
-      if (live.format.startsWith("KiCad") && cam.current.zoom * live.unitsPerMm >= 4) {
-        const placed = new Set<string>();
-        ctx.save();
-        ctx.font = '500 10px "IBM Plex Mono", monospace';
-        ctx.textAlign = "center";
-        ctx.textBaseline = "middle";
-        for (const segment of live.segments) {
-          if (!segment.net || segment.net.toLowerCase() === "via") continue;
-          if (!segment.layer?.endsWith(".Cu") || !segmentLayerVisible(segment, layerRef.current)) continue;
-          if (strictFace && !segment.layer.match(/^In\d+\.Cu$/) && (!segment.side || !acceptsSide(segment.side, current.side))) continue;
-          const a = project(segment.x1, segment.y1), b = project(segment.x2, segment.y2);
-          const x = (a.x + b.x) / 2, y = (a.y + b.y) / 2;
-          if (x < 35 || x > w - 35 || y < 12 || y > h - 12) continue;
-          if (Math.hypot(b.x - a.x, b.y - a.y) < 24) continue;
-          const key = `${segment.net}:${Math.floor(x / 180)}:${Math.floor(y / 95)}`;
-          if (placed.has(key)) continue;
-          placed.add(key);
-          const label = segment.net;
-          const textWidth = ctx.measureText(label).width;
-          ctx.fillStyle = "rgba(228,234,240,0.92)";
-          ctx.fillRect(x - textWidth / 2 - 3, y - 7, textWidth + 6, 14);
-          ctx.fillStyle = "#000000";
-          ctx.fillText(label, x, y);
-        }
-        ctx.restore();
-      }
         // Missing layer metadata uses the active face as a visual fallback.
 
       if (hotNet && !selectedGround) {
@@ -449,10 +421,7 @@ export function Viewport({ board, layers = DEFAULT_BOARD_LAYERS, projectId, over
         ctx.fillStyle = "#000000";
         ctx.textAlign = "left"; ctx.textBaseline = "bottom";
         ctx.fillText(pin.name, p.x + s / 2 + 3, p.y - s / 2 - 2);
-        if (pin.net && pin.net.toLowerCase() !== "via") {
-          ctx.font = `500 10px "IBM Plex Mono", monospace`;
-          ctx.fillText(pin.net, p.x + s / 2 + 3, p.y + 11);
-        }
+
       }
     }
     ctx.globalAlpha = 1;
@@ -792,7 +761,7 @@ export function Viewport({ board, layers = DEFAULT_BOARD_LAYERS, projectId, over
   } | null>(null);
 
   return (
-    <div ref={wrapRef} className="relative min-h-0 min-w-0 flex-1 bg-black xe-workspace-black">
+    <div ref={wrapRef} className="relative min-h-0 min-w-0 flex-1 bg-white xe-workspace-black">
       <canvas
         ref={canvasRef}
         className="h-full w-full touch-none"
@@ -947,7 +916,7 @@ export function Viewport({ board, layers = DEFAULT_BOARD_LAYERS, projectId, over
       />
       {hover ? (
         <div
-          className="pointer-events-none absolute z-10 rounded-control border border-border bg-bg-elevated px-2 py-1 text-xs text-fg"
+          className="pointer-events-none absolute z-10 rounded-lg border border-slate-300 bg-white px-3 py-2 text-[15px] font-bold leading-snug text-slate-900 shadow-lg"
           style={{ left: Math.min(hover.sx + 14, size.current.w - 160), top: hover.sy + 14 }}
         >
           {hover.label}

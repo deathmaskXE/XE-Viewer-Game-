@@ -153,7 +153,7 @@ export function DiagramPane({
       ) : (
         <div
           ref={imageArea}
-          className="relative min-h-0 flex-1 touch-none overflow-hidden bg-black xe-workspace-black"
+          className="relative min-h-0 flex-1 touch-none overflow-hidden bg-white xe-workspace-black"
           onPointerDown={(event) => {
             drag.current = { x: event.clientX, y: event.clientY, px: pan.x, py: pan.y };
             event.currentTarget.setPointerCapture(event.pointerId);
