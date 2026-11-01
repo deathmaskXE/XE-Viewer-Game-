@@ -349,8 +349,7 @@ export function Viewport({ board, layers = DEFAULT_BOARD_LAYERS, projectId, over
         ctx.beginPath();
         const dots: { x: number; y: number }[] = [];
         for (const segment of live.segments) {
-          if (!segmentLayerVisible(segment, layerRef.current)) continue;
-          if (segment.net !== hotNet || (strictFace && !segment.layer?.match(/^In\d+\.Cu$/) && ((strictFace && !segment.side) || (segment.side && !acceptsSide(segment.side, current.side))))) continue;
+          if (segment.net !== hotNet) continue;
           const a = project(segment.x1, segment.y1);
           const b = project(segment.x2, segment.y2);
           ctx.moveTo(a.x, a.y);
@@ -369,7 +368,7 @@ export function Viewport({ board, layers = DEFAULT_BOARD_LAYERS, projectId, over
     }
 
     // Connection guides are electrical links, never inferred copper routes.
-    if (hotNet && !selectedGround && !live.segments.some(segment => segment.net === hotNet && (!segment.side || acceptsSide(segment.side, current.side)))) {
+    if (hotNet && !selectedGround && !live.segments.some(segment => segment.net === hotNet)) {
       const endpoints = [...live.pins.filter(pin => pin.net === hotNet && acceptsSide(pin.side, current.side)), ...live.nails.filter(nail => nail.net === hotNet && acceptsSide(nail.side, current.side))];
       const unique = [...new Map(endpoints.map(point => [`${point.x},${point.y}`, point])).values()];
       const anchor = unique.find(point => "part" in point && point.part === current.selectedPart) ?? unique[0];
@@ -410,6 +409,23 @@ export function Viewport({ board, layers = DEFAULT_BOARD_LAYERS, projectId, over
       ctx.shadowBlur = 0; ctx.fillStyle = "#000000";
       ctx.fillRect(p.x - s / 2, p.y - s / 2, s, s);
       ctx.restore();
+      // Larger identifying rings for the two joystick potentiometers.
+      const owner = live.parts[pin.part]?.name?.toUpperCase();
+      const targetNets: Record<string, string[]> = {
+        SW1: ["GND", "/55", "+1V8", "/57", "NET-(R26-PAD1)"],
+        SW2: ["GND", "/13", "+1V8", "/15", "NET-(R21-PAD2)"],
+      };
+      const normalizedNet = (pin.net || "").trim().toUpperCase();
+      if (owner && targetNets[owner]?.includes(normalizedNet)) {
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, Math.max(9, Math.min(22, s * 1.15)), 0, Math.PI * 2);
+        ctx.strokeStyle = hot ? "#e11919" : "#f5c542";
+        ctx.lineWidth = 3;
+        ctx.shadowBlur = 0;
+        ctx.stroke();
+        ctx.restore();
+      }
       if (live.format.startsWith("KiCad") && pin.name && cam.current.zoom * live.unitsPerMm > 5) {
         ctx.font = `500 11px "IBM Plex Mono", monospace`;
         ctx.fillStyle = "#000000";
