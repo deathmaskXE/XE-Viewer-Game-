@@ -53,8 +53,8 @@ type Props = {
 };
 
 const PAL = {
-  bg: "#edf5f8",
-  fill: "#e2edf2",
+  bg: "#000000",
+  fill: "#172d4a",
   outline: "#000000",
   partTop: "#244e65",
   partBot: "#26788c",
@@ -64,7 +64,7 @@ const PAL = {
   hot: "#ffffff",
   net: "#008b9f",
   trace: "#00f5ff",
-  text: "#193b4c",
+  text: "#000000",
   dim: "rgba(176,216,229,0.28)",
 };
 
@@ -297,13 +297,13 @@ export function Viewport({ board, layers = DEFAULT_BOARD_LAYERS, projectId, over
       ctx.setLineDash(part.side === "bottom" ? [3, 3] : []);
       ctx.strokeRect(left, top, bw, bh);
       ctx.setLineDash([]);
-      if ((selected || (!underlay && bw > 36)) && bw > 18) {
+      if (bw >= 8 && bh >= 7) {
         ctx.globalAlpha = selected ? 1 : 0.8;
-        ctx.fillStyle = selected ? PAL.hot : /^J\d/i.test(part.name) ? "#183442" : "#ffffff";
-        ctx.font = `500 ${Math.max(10, Math.min(13, bw / 8))}px "IBM Plex Sans", sans-serif`;
+        ctx.fillStyle = "#000000";
+        ctx.font = `500 ${Math.max(7, Math.min(14, bw / Math.max(2, part.name.length * 0.58)))}px "IBM Plex Sans", sans-serif`;
         ctx.textAlign = "center";
         ctx.textBaseline = "middle";
-        ctx.fillText(part.name, left + bw / 2, top + bh / 2, Math.max(12, bw - 6));
+        ctx.fillText(part.name, left + bw / 2, top + bh / 2, Math.max(6, bw - 2));
       }
       ctx.globalAlpha = 1;
     });
@@ -760,7 +760,7 @@ export function Viewport({ board, layers = DEFAULT_BOARD_LAYERS, projectId, over
   } | null>(null);
 
   return (
-    <div ref={wrapRef} className="relative min-h-0 min-w-0 flex-1 bg-bg">
+    <div ref={wrapRef} className="relative min-h-0 min-w-0 flex-1 bg-black xe-workspace-black">
       <canvas
         ref={canvasRef}
         className="h-full w-full touch-none"

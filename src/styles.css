@@ -9,17 +9,17 @@
   --font-sans: "IBM Plex Sans", "Liberation Sans", sans-serif;
   --font-mono: "IBM Plex Mono", "Liberation Mono", ui-monospace, monospace;
 
-  --color-bg: #edf5f8;
-  --color-bg-elevated: #ffffff;
-  --color-bg-subtle: #e0eef3;
-  --color-fg: #183442;
-  --color-muted: #466371;
-  --color-subtle: #5b7582;
-  --color-primary: #28e5f2;
-  --color-primary-fg: #073342;
-  --color-accent: #007f96;
-  --color-border: #bed5df;
-  --color-danger: #bd3446;
+  --color-bg: #111820;
+  --color-bg-elevated: #202b39;
+  --color-bg-subtle: #2b394b;
+  --color-fg: #e6f5ff;
+  --color-muted: #9cb5c7;
+  --color-subtle: #91aabd;
+  --color-primary: #00eaff;
+  --color-primary-fg: #061627;
+  --color-accent: #2365e8;
+  --color-border: #40536b;
+  --color-danger: #ff5970;
 
   --radius-control: 10px;
   --radius-panel: 12px;
@@ -29,7 +29,7 @@
 @layer base {
   html {
     height: 100%;
-    color-scheme: light;
+    color-scheme: dark;
   }
   body {
     margin: 0;
@@ -56,7 +56,7 @@
 }
 
 .xe-header {
-  background: linear-gradient(110deg, #ffffff 0%, #eef7fa 48%, #dceaf0 100%);
+  background: linear-gradient(110deg, #222c39 0%, #1a3469 48%, #15222f 100%);
   box-shadow: inset 0 -1px 0 rgba(91, 220, 241, .12);
 }
 
@@ -68,7 +68,7 @@
   flex: none;
   border: 1px solid rgba(97, 228, 246, .5);
   border-radius: 10px;
-  background: linear-gradient(145deg, #ffffff, #28e5f2 65%, #dceaf0);
+  background: linear-gradient(145deg, #253b55, #00eaff 65%, #1648a4);
   box-shadow: inset 0 1px 0 rgba(225, 250, 255, .24), 0 0 18px rgba(32, 191, 219, .12);
   color: #073342;
   font-weight: 600;
@@ -76,11 +76,11 @@
 }
 
 .xe-sidebar {
-  background: linear-gradient(180deg, #f8fcfe, #ffffff 45%);
+  background: linear-gradient(180deg, #263446, #151e29 65%);
 }
 
 .xe-inspector {
-  background: linear-gradient(180deg, #f4fafc, #ffffff 45%);
+  background: linear-gradient(180deg, #263446, #151e29 65%);
 }
 
 .xe-header button[aria-pressed="true"] {
@@ -197,3 +197,8 @@ nav { padding-bottom: env(safe-area-inset-bottom); }
 .xe-neon-title { margin:0 0 12px; font-size:clamp(30px,4.4vw,58px); font-weight:900; line-height:1.12; letter-spacing:.15em; color:#eaffff; text-shadow:0 0 5px #00eaff,0 0 13px #00eaff,0 0 30px #00aaff,0 0 55px #0077ff; }
 .xe-brand-tabs { display:flex; justify-content:center; gap:12px; }
 .xe-brand-tabs .xe-viewer-tab { min-width:130px; }
+
+/* Black work surfaces for boardviews, overlays, PDFs and diagrams. */
+.xe-workspace-black, .xe-workspace-black canvas { background-color: #000 !important; }
+.xe-brand-banner { background: linear-gradient(120deg,#18232f,#173e9c 55%,#18232f); }
+.xe-neon-title { color:#eaffff; text-shadow:0 0 7px #00eaff,0 0 22px #00eaff,0 0 42px #007fff; }
