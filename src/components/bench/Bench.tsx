@@ -296,6 +296,17 @@ export function Bench() {
     setActiveDiagram(id);
   };
   const selected = selectedPart != null ? board?.parts[selectedPart] : null;
+  const [smartSync, setSmartSync] = useState(true);
+  const smartPdfRef = useRef<HTMLInputElement>(null);
+  const smartPdf = project?.diagrams.find(d => d.id === visibleRight?.id && /pdf/i.test(d.mime + d.name)) ?? project?.diagrams.find(d => /pdf/i.test(d.mime + d.name));
+  useEffect(() => {
+    if (!smartSync || !board || project?.sample || !smartPdf) return;
+    setLeftDiagramId(null); setRightDiagramId(smartPdf.id); setDiagramLayout("split"); setActiveDiagram(smartPdf.id);
+  }, [project?.id, smartPdf?.id, smartSync, board, setActiveDiagram]);
+  const locateFromPdf = (name: string) => {
+    const index = board?.parts.findIndex(p => p.name.toUpperCase() === name.toUpperCase()) ?? -1;
+    if (index >= 0) selectPart(index, true);
+  };
   const selectedPins = board && selectedPart != null ? board.pins.filter((pin) => pin.part === selectedPart) : [];
   const nail = selectedNail != null ? board?.nails[selectedNail] : null;
   const boardWidth = prep ? Math.max(1, prep.bounds.maxX - prep.bounds.minX) : 1;
@@ -339,6 +350,7 @@ export function Bench() {
     >
       <input ref={paneFileRef} type="file" multiple className="sr-only" aria-label="Abrir archivo en ventana" accept=".psd,.psb,.pdf,.png,.jpg,.jpeg,.webp,.svg,.kicad_sch" onChange={e => { const files=[...(e.target.files ?? [])]; e.target.value=""; void finishPaneImport(files); }} />
       <input type="file" multiple className="sr-only" aria-label="Abrir carpeta en ventana" ref={(element) => { paneFolderRef.current=element; element?.setAttribute("webkitdirectory",""); element?.setAttribute("directory",""); }} onChange={e => { const files=[...(e.target.files ?? [])]; e.target.value=""; void finishPaneImport(files,true); }} />
+      <input ref={smartPdfRef} type="file" accept=".pdf,application/pdf" className="sr-only" onChange={e => { const file=e.target.files?.[0]; e.target.value=""; if(file) void importFiles([file], true); }} />
       <input ref={compareRef} type="file" className="sr-only" aria-label="Elegir diagrama para comparar" accept=".psd,.psb,.pdf,.png,.jpg,.jpeg,.webp,.svg,.kicad_sch" onChange={(event) => { const files = event.target.files; if(files?.length) void importFiles([...files], true); event.target.value = ""; }} />
       <input
         ref={fileRef}
@@ -455,6 +467,8 @@ export function Bench() {
         </details>
         {boardTools ? <>
         <Button variant="quiet" disabled={importing} onClick={() => compareRef.current?.click()}>Comparar diagrama</Button>
+        {board && <><Button variant={smartSync ? "primary" : "quiet"} onClick={() => setSmartSync(v => !v)}>Smart Sync {smartSync ? "ON" : "OFF"}</Button><Button variant="quiet" disabled={importing} onClick={() => smartPdfRef.current?.click()}>{smartPdf ? "Vincular otro PDF" : "Vincular PDF"}</Button></>}
+        {board && !project?.sample && smartSync && !smartPdf && <span className="text-xs text-muted">Selecciona el PDF correspondiente a esta placa.</span>}
         {board && rearOpen ? <Button variant={syncLayers ? "primary" : "quiet"} aria-pressed={syncLayers} onClick={() => { if (!syncLayers) setRearLayers({...frontLayers}); setSyncLayers(!syncLayers); }}>{syncLayers ? "🔗 Capas sincronizadas" : "🔓 Capas independientes"}</Button> : null}
         <Button variant={rearOpen ? "primary" : "quiet"} aria-pressed={rearOpen} onClick={() => setSide(rearOpen ? "top" : "both")}>Dos caras</Button>
         <div className="flex rounded-panel border border-border p-1">
@@ -717,7 +731,7 @@ export function Bench() {
                   <Button size="sm" onClick={() => setPaneChooser(paneChooser==="right"?null:"right")}>Elegir archivo</Button>
                 </div>
                 {paneChooser==="right" ? <div className="max-h-36 overflow-auto border-b border-border bg-bg-elevated p-2">{project?.diagrams.map(d => <button key={d.id} className="block w-full p-2 text-left text-xs" onClick={() => {setRightDiagramId(d.id);setActiveDiagram(d.id);setPaneChooser(null)}}>{d.name}</button>)}</div> : null}
-                <div className="flex min-h-0 flex-1"><DiagramPane key={visibleRight.id} diagram={visibleRight} url={urls[visibleRight.id]} onClose={() => {if(diagramLayout==="split"&&visibleLeft){setRightDiagramId(null);setDiagramLayout("full");setActiveDiagram(visibleLeft.id)}else toggleDiagram()}} layout={diagramLayout} onLayoutChange={setDiagramLayout}/></div>
+                <div className="flex min-h-0 flex-1"><DiagramPane key={visibleRight.id} diagram={visibleRight} url={urls[visibleRight.id]} syncReference={smartSync && board ? selected?.name : undefined} onReference={smartSync && board ? locateFromPdf : undefined} onClose={() => {if(diagramLayout==="split"&&visibleLeft){setRightDiagramId(null);setDiagramLayout("full");setActiveDiagram(visibleLeft.id)}else toggleDiagram()}} layout={diagramLayout} onLayoutChange={setDiagramLayout}/></div>
               </div>
             ) : null}
           </div>

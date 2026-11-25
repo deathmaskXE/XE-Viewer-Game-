@@ -14,7 +14,10 @@ export function DiagramPane({
   onClose,
   layout,
   onLayoutChange,
+  syncReference, onReference,
 }: {
+  syncReference?: string;
+  onReference?: (name: string) => void;
   diagram: DiagramRecord;
   url: string;
   onClose: () => void;
@@ -90,8 +93,8 @@ export function DiagramPane({
     return () => { cancelled = true; if (imageUrl) URL.revokeObjectURL(imageUrl); setPdfImage(null); };
   }, [pdf, url, page]);
 
-  const searchPdf = async () => {
-    const query = pdfQuery.trim().toLocaleLowerCase();
+  const searchPdf = async (value = pdfQuery, exact = false) => {
+    const query = value.trim().toLocaleLowerCase();
     const token = ++searchToken.current;
     setPdfMatches([]); setPdfSearchNotice("");
     if (!query) { setPdfSearching(false); return; }
@@ -111,7 +114,7 @@ export function DiagramPane({
         const content = await sheet.getTextContent();
         const text = content.items.map(item => "str" in item ? item.str : "").join(" ");
         if (text.trim()) hasText = true;
-        const found = text.toLocaleLowerCase().indexOf(query);
+        const found = exact ? text.toLocaleLowerCase().search(new RegExp("(?<![a-z0-9_])" + query.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "(?![a-z0-9_])")) : text.toLocaleLowerCase().indexOf(query);
         if (found >= 0) matches.push({ page: number, excerpt: text.slice(Math.max(0, found - 45), found + query.length + 85) });
       }
       if (token === searchToken.current) {
@@ -123,6 +126,11 @@ export function DiagramPane({
     finally { await task?.destroy(); if (token === searchToken.current) setPdfSearching(false); }
   };
   useEffect(() => () => { searchToken.current++; }, [url]);
+  useEffect(() => {
+    if (!pdf || !syncReference) return;
+    setPdfQuery(syncReference);
+    void searchPdf(syncReference, true);
+  }, [pdf, url, syncReference]);
 
   return (
     <section className="relative flex min-h-0 min-w-0 flex-col border-border bg-bg-elevated border-l" onContextMenu={(event) => event.preventDefault()}>
@@ -145,6 +153,7 @@ export function DiagramPane({
           <input aria-label="Buscar texto en el PDF" placeholder="Buscar referencia o señal…" value={pdfQuery} onChange={event => setPdfQuery(event.target.value)} className="h-11 min-w-0 flex-1 rounded-control border border-border bg-bg px-2 text-sm" />
           <Button type="submit" variant="primary" disabled={pdfSearching}>{pdfSearching ? "Buscando…" : "Buscar"}</Button>
         </form>
+        {onReference && <Button size="sm" variant="quiet" onClick={() => onReference(pdfQuery.trim())}>Localizar referencia en placa</Button>}
         {pdfSearchNotice ? <p role="status" className="mt-1 text-xs text-muted">{pdfSearchNotice}</p> : null}
         {pdfMatches.length ? <div className="mesa-scroll mt-1 max-h-28 overflow-auto">{pdfMatches.map(match => <button key={match.page} className="block min-h-11 w-full rounded-control px-2 py-2 text-left text-xs hover:bg-bg-subtle" onClick={() => { setPage(match.page); setZoom(1); setPan({ x: 0, y: 0 }); setRegions([]); }}><strong>Pág. {match.page}</strong> · {match.excerpt}</button>)}</div> : null}
       </div> : null}
