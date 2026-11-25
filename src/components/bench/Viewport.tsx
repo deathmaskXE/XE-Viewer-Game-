@@ -325,47 +325,27 @@ export function Viewport({ board, layers = DEFAULT_BOARD_LAYERS, projectId, over
     ctx.lineWidth = 1;
     const hotNet = current.selectedNet;
     if (live.segments.length) {
-      // Batch visible traces into one canvas stroke. Avoid a separate GPU paint
-      // operation per segment; this is especially important for large boardviews.
-      ctx.beginPath();
+      // Batch by source width and selection; use the same visibility rules for both.
+      const batches = new Map<string, { path: Path2D; width: number; hot: boolean }>();
       for (const segment of live.segments) {
-        if (hotNet && segment.net === hotNet) continue;
         if (!segmentLayerVisible(segment, layerRef.current)) continue;
-        if (strictFace && !segment.layer?.match(/^In\d+\.Cu$/) && (!segment.side || !acceptsSide(segment.side, current.side))) continue;
-        const a = project(segment.x1, segment.y1);
-        const b = project(segment.x2, segment.y2);
-        if ((a.x < -4 && b.x < -4) || (a.x > w + 4 && b.x > w + 4) ||
-            (a.y < -4 && b.y < -4) || (a.y > h + 4 && b.y > h + 4)) continue;
-        ctx.moveTo(a.x, a.y);
-        ctx.lineTo(b.x, b.y);
+        if (strictFace && segment.side && !acceptsSide(segment.side, current.side)) continue;
+        const a = project(segment.x1, segment.y1), b = project(segment.x2, segment.y2);
+        const hot = Boolean(hotNet && !selectedGround && segment.net === hotNet);
+        const width = Math.max(0.55, segment.width ? segment.width * cam.current.zoom : 1);
+        const key = `${hot}:${width}`;
+        let batch = batches.get(key);
+        if (!batch) { batch = { path: new Path2D(), width, hot }; batches.set(key, batch); }
+        batch.path.moveTo(a.x, a.y); batch.path.lineTo(b.x, b.y);
       }
-      ctx.strokeStyle = "#111811";
-      ctx.globalAlpha = 1;
-      ctx.shadowBlur = 0;
-      ctx.lineCap = "round";
-      ctx.lineJoin = "round";
-      ctx.lineWidth = Math.max(0.55, Math.min(1.35, cam.current.zoom * 0.16));
-      ctx.stroke();
+      ctx.globalAlpha = 1; ctx.shadowBlur = 0; ctx.lineCap = "round"; ctx.lineJoin = "round";
+      for (const hot of [false, true]) for (const batch of batches.values()) {
+        if (batch.hot !== hot) continue;
+        ctx.strokeStyle = hot ? "#e11919" : "#111811";
+        ctx.lineWidth = hot ? Math.max(1.6, batch.width) : batch.width;
+        ctx.stroke(batch.path);
+      }
       ctx.lineWidth = 1;
-
-      if (hotNet && !selectedGround) {
-        ctx.beginPath();
-        for (const segment of live.segments) {
-          if (segment.net !== hotNet) continue;
-          const a = project(segment.x1, segment.y1);
-          const b = project(segment.x2, segment.y2);
-          ctx.moveTo(a.x, a.y);
-          ctx.lineTo(b.x, b.y);
-        }
-        // Continuous solid red selection: no endpoint dots or glow.
-        ctx.strokeStyle = "#e11919";
-        ctx.lineCap = "round";
-        ctx.lineJoin = "round";
-        ctx.shadowBlur = 0;
-        ctx.lineWidth = Math.max(1.6, Math.min(3.4, cam.current.zoom * 0.32));
-        ctx.stroke();
-        ctx.lineWidth = 1;
-      }
     }
 
     // Do not draw synthetic straight-line connections between pads. They are

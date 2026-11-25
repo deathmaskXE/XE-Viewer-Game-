@@ -37,6 +37,8 @@ export type BoardSegment = {
   y1: number;
   x2: number;
   y2: number;
+  /** Source stroke width in board units. */
+  width?: number;
   /** Copper face, when provided by the source. */
   side?: Side;
   /** Exact source PCB layer, if supplied. */

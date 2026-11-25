@@ -104,8 +104,8 @@ export function Bench() {
     const knownStack = [...new Set(sourceStack)].filter(key => availableKeys.has(key));
     const fallback = ["topCopper", ...dynamic.filter(key => /^inner\d+$/.test(key)), "bottomCopper"];
     const orderedCopper: BoardLayer[] = (knownStack.length ? knownStack : fallback).filter(key => availableKeys.has(key) || key === "topCopper" || key === "bottomCopper");
-    if (face === "rear") orderedCopper.reverse();
-    const extras = dynamic.filter(key => !/^inner\d+$/.test(key));
+    if (face === "rear" && board?.format !== "XZZ") orderedCopper.reverse();
+    const extras = dynamic.filter(key => !/^inner\d+$/.test(key) && !orderedCopper.includes(key));
     const keys: BoardLayer[] = [
       ...orderedCopper,
       ...(face === "front" ? ["topSilk", "bottomSilk"] : ["bottomSilk", "topSilk"]),
@@ -114,7 +114,7 @@ export function Bench() {
     const state = face === "front" ? frontLayers : rearLayers;
     return <details className="border-b border-border bg-bg-elevated px-2 py-1 text-xs" open>
       <summary className="cursor-pointer font-semibold">☷ CAPAS · {face === "front" ? "TOP → BOTTOM" : "BOTTOM → TOP"} ({orderedCopper.filter(k=>k.startsWith("inner")).length} INNER)</summary>
-      <div className="flex flex-wrap gap-x-3 gap-y-2 py-2">{keys.map(key => <label key={key} className="inline-flex items-center gap-1"><input type="checkbox" checked={state[key] !== false} onChange={e => setBoardLayer(face,key,e.target.checked)} />{BOARD_LAYER_NAMES[key] ?? (key.startsWith("inner") ? `INNER ${key.slice(5)}` : key.replace(/^source:/,"CAPA "))}</label>)}</div>
+      <div className="flex flex-wrap gap-x-3 gap-y-2 py-2">{keys.map(key => <label key={key} className="inline-flex items-center gap-1"><input type="checkbox" checked={state[key] !== false} onChange={e => setBoardLayer(face,key,e.target.checked)} />{(board?.format === "XZZ" && key === "topCopper" ? "CAPA 1 (TOP)" : key.startsWith("source:XZZ.Cu.") ? `CAPA ${key.split(".").at(-1)}` : undefined) ?? BOARD_LAYER_NAMES[key] ?? (key.startsWith("inner") ? `INNER ${key.slice(5)}` : key.replace(/^source:/,"CAPA "))}</label>)}</div>
     </details>;
   };
   const mirror = useBench((state) => state.mirror);

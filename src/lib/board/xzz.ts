@@ -92,7 +92,7 @@ function arcSegments(
   let sweep = endDeg - startDeg;
   if (sweep <= 0) sweep += 360;
   if (sweep > 360) sweep = 360;
-  const steps = Math.max(2, Math.ceil(sweep / 12));
+  const steps = Math.max(2, Math.ceil(sweep / 2));
   const segments: BoardSegment[] = [];
   let prevX = cx + radius * Math.cos((startDeg * Math.PI) / 180);
   let prevY = cy + radius * Math.sin((startDeg * Math.PI) / 180);
@@ -111,15 +111,15 @@ function arcSegments(
  * Keep the original ID as well as the viewer alias so unsupported IDs are
  * inspectable instead of silently merging all geometry into TOP.
  */
-// XZZ copper IDs are sequential: 1=TOP, 2..9=INNER 1..8, 10=BOTTOM.
+// Preserve numeric routing IDs; physical bottom is not established.
 // Preserve other identifiers rather than presenting them as fabricated copper.
 const XZZ_LAYERS: Record<number, string> = {
-  1: "F.Cu", 10: "B.Cu", 16: "F.SilkS", 17: "B.SilkS", 28: "Edge.Cuts",
+  1: "F.Cu", 16: "F.SilkS", 17: "B.SilkS", 28: "Edge.Cuts",
 };
 function sourceLayer(body: Uint8Array): string | undefined {
   if (body.length < 4) return undefined;
   const id = u32(body, 0);
-  return XZZ_LAYERS[id] ?? (id >= 2 && id <= 9 ? `In${id - 1}.Cu` : `XZZ.${id}`);
+  return XZZ_LAYERS[id] ?? (id >= 2 && id <= 15 ? `XZZ.Cu.${id}` : `XZZ.${id}`);
 }
 function tagLayer(segment: BoardSegment, body: Uint8Array): BoardSegment {
   segment.layer = sourceLayer(body);
@@ -136,6 +136,7 @@ function lineOf(body: Uint8Array, net?: string): BoardSegment | null {
     x2: mils(i32(body, 12)),
     y2: mils(i32(body, 16)),
     net,
+    width: body.length >= 24 ? mils(u32(body, 20)) : undefined,
   };
 }
 
@@ -188,11 +189,11 @@ export function parseXzz(name: string, source: Uint8Array): Board {
           mils(i32(body, 4)),
           mils(i32(body, 8)),
           Math.abs(mils(i32(body, 12))),
-          mils(i32(body, 16)),
-          mils(i32(body, 20)),
+          i32(body, 16) / 10000,
+          i32(body, 20) / 10000,
           body.length >= 32 ? nets.get(u32(body, 28)) : undefined,
         );
-      for (const segment of arc) tagLayer(segment, body);
+      for (const segment of arc) { tagLayer(segment, body); segment.width = body.length >= 28 ? mils(u32(body, 24)) : undefined; }
       segments.push(...arc);
       if (u32(body, 0) === 28) for (const segment of arc) outlinePoints.push({ x: segment.x1, y: segment.y1 }, { x: segment.x2, y: segment.y2 });
       continue;
@@ -215,8 +216,8 @@ export function parseXzz(name: string, source: Uint8Array): Board {
     outlineSegments: outlinePoints.filter((_, index) => index % 2 === 0).map((a, index) => { const b = outlinePoints[index * 2 + 1]; return { x1: a.x, y1: a.y, x2: b.x, y2: b.y }; }),
     segments,
     availableLayers: [...new Set(segments.map(s => s.layer).filter((layer): layer is string => !!layer))],
-    // This format explicitly defines 1=TOP, 2..9=INNER and 10=BOTTOM.
-    copperStack: ["F.Cu", ...Array.from({length:8}, (_, i) => `In${i+1}.Cu`), "B.Cu"].filter(layer => segments.some(s => s.layer === layer)),
+    // Observed routing IDs, not an inferred physical stack.
+    copperStack: ["F.Cu", ...Array.from({length:14}, (_, i) => `XZZ.Cu.${i+2}`)].filter(layer => segments.some(s => s.layer === layer)),
     parts,
     pins,
     nails: [],
