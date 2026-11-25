@@ -1,2 +1,0 @@
-V2: PDF document and text index reused; resolution follows zoom (bounded to 24 MP / 8192 px); manual verified reference mapping per project/PDF; stable deployment artifact name.
-EDM-010 supplied XZZ file uses internal names (e.g. N16134) absent from supplied schematic. No automatic equivalence is inferred. Search the actual schematic reference, then use Vincular referencia verificada only after confirming physical identity. Existing parser tests: 15 passed. Browser/build not verified: npm dependencies unavailable in environment.
