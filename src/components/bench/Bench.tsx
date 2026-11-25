@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Crosshair,
   Eye,
@@ -303,8 +303,15 @@ export function Bench() {
     if (!smartSync || !board || project?.sample || !smartPdf) return;
     setLeftDiagramId(null); setRightDiagramId(smartPdf.id); setDiagramLayout("split"); setActiveDiagram(smartPdf.id);
   }, [project?.id, smartPdf?.id, smartSync, board, setActiveDiagram]);
+  const aliasKey = `xe-sync-alias-v2:${project?.id}:${smartPdf?.id}`;
+  const [aliasRevision, setAliasRevision] = useState(0);
+  const aliases = useMemo(() => { try { return JSON.parse(localStorage.getItem(aliasKey) || "{}") as Record<string,string>; } catch { return {}; } }, [aliasKey, aliasRevision]);
+  const linkReference = (reference: string) => {
+    if (!selected || !reference.trim()) return;
+    try { localStorage.setItem(aliasKey, JSON.stringify({...aliases,[selected.name]:reference.trim()})); setAliasRevision(v=>v+1); } catch { window.alert("No se pudo guardar la equivalencia."); }
+  };
   const locateFromPdf = (name: string) => {
-    const index = board?.parts.findIndex(p => p.name.toUpperCase() === name.toUpperCase()) ?? -1;
+    const index = board?.parts.findIndex(p => (aliases[p.name] || p.name).toUpperCase() === name.toUpperCase()) ?? -1;
     if (index >= 0) selectPart(index, true);
   };
   const selectedPins = board && selectedPart != null ? board.pins.filter((pin) => pin.part === selectedPart) : [];
@@ -731,7 +738,7 @@ export function Bench() {
                   <Button size="sm" onClick={() => setPaneChooser(paneChooser==="right"?null:"right")}>Elegir archivo</Button>
                 </div>
                 {paneChooser==="right" ? <div className="max-h-36 overflow-auto border-b border-border bg-bg-elevated p-2">{project?.diagrams.map(d => <button key={d.id} className="block w-full p-2 text-left text-xs" onClick={() => {setRightDiagramId(d.id);setActiveDiagram(d.id);setPaneChooser(null)}}>{d.name}</button>)}</div> : null}
-                <div className="flex min-h-0 flex-1"><DiagramPane key={visibleRight.id} diagram={visibleRight} url={urls[visibleRight.id]} syncReference={smartSync && board ? selected?.name : undefined} onReference={smartSync && board ? locateFromPdf : undefined} onClose={() => {if(diagramLayout==="split"&&visibleLeft){setRightDiagramId(null);setDiagramLayout("full");setActiveDiagram(visibleLeft.id)}else toggleDiagram()}} layout={diagramLayout} onLayoutChange={setDiagramLayout}/></div>
+                <div className="flex min-h-0 flex-1"><DiagramPane key={visibleRight.id} diagram={visibleRight} url={urls[visibleRight.id]} syncReference={smartSync && board && selected ? aliases[selected.name] || selected.name : undefined} onLinkReference={smartSync && selected ? linkReference : undefined} onReference={smartSync && board ? locateFromPdf : undefined} onClose={() => {if(diagramLayout==="split"&&visibleLeft){setRightDiagramId(null);setDiagramLayout("full");setActiveDiagram(visibleLeft.id)}else toggleDiagram()}} layout={diagramLayout} onLayoutChange={setDiagramLayout}/></div>
               </div>
             ) : null}
           </div>

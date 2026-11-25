@@ -14,9 +14,10 @@ export function DiagramPane({
   onClose,
   layout,
   onLayoutChange,
-  syncReference, onReference,
+  syncReference, onReference, onLinkReference,
 }: {
   syncReference?: string;
+  onLinkReference?: (name:string)=>void;
   onReference?: (name: string) => void;
   diagram: DiagramRecord;
   url: string;
@@ -41,6 +42,12 @@ export function DiagramPane({
   const [pdfPages, setPdfPages] = useState(1);
   const [pdfError, setPdfError] = useState("");
   const [pdfImage, setPdfImage] = useState<string | null>(null);
+  const lastImage=useRef<string|null>(null);
+  useEffect(()=>()=>{if(lastImage.current)URL.revokeObjectURL(lastImage.current);lastImage.current=null;},[url]);
+  const [doc, setDoc] = useState<import("pdfjs-dist").PDFDocumentProxy | null>(null);
+  const indexRef = useRef<Promise<{page:number; text:string}[]> | null>(null);
+  const [areaSize, setAreaSize] = useState({width:800,height:600});
+  useEffect(() => { const el=imageArea.current; if (!el) return; const observer=new ResizeObserver(([e])=>setAreaSize({width:e.contentRect.width,height:e.contentRect.height})); observer.observe(el); return ()=>observer.disconnect(); }, [pdf, diagram.id]);
   const drag = useRef<{ x: number; y: number; px: number; py: number } | null>(null);
   const imageArea = useRef<HTMLDivElement>(null);
 
@@ -67,31 +74,40 @@ export function DiagramPane({
 
   useEffect(() => {
     if (!pdf) return;
-    setPdfError("");
-    let cancelled = false;
-    let imageUrl: string | null = null;
-    void (async () => {
-      const pdfjs = await import("pdfjs-dist");
-      pdfjs.GlobalWorkerOptions.workerSrc = (await import("pdfjs-dist/build/pdf.worker.min.mjs?url")).default;
-      const response = await fetch(url);
-      const task = pdfjs.getDocument({ data: new Uint8Array(await response.arrayBuffer()) });
-      try {
-        const document = await task.promise;
-        setPdfPages(document.numPages);
-        const sheet = await document.getPage(page);
-        const base = sheet.getViewport({ scale: 1 });
-        const viewport = sheet.getViewport({ scale: Math.min(2.5, 2400 / Math.max(base.width, base.height)) });
-        const canvas = window.document.createElement("canvas");
-        canvas.width = Math.ceil(viewport.width); canvas.height = Math.ceil(viewport.height);
-        const context = canvas.getContext("2d");
-        if (!context) return;
-        await sheet.render({ canvas, canvasContext: context, viewport }).promise;
-        const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve));
-        if (blob && !cancelled) { imageUrl = URL.createObjectURL(blob); setPdfImage(imageUrl); }
-      } finally { await task.destroy(); }
-    })().catch((error) => { if (!cancelled) { setPdfImage(null); setPdfError(error instanceof Error ? error.message : "No pude abrir el PDF."); } });
-    return () => { cancelled = true; if (imageUrl) URL.revokeObjectURL(imageUrl); setPdfImage(null); };
-  }, [pdf, url, page]);
+    let cancelled=false;
+    let task: ReturnType<typeof import("pdfjs-dist")["getDocument"]> | undefined;
+    setDoc(null); setPdfImage(null); setPdfError(""); indexRef.current=null;
+    void (async()=>{
+      const lib=await import("pdfjs-dist");
+      lib.GlobalWorkerOptions.workerSrc=(await import("pdfjs-dist/build/pdf.worker.min.mjs?url")).default;
+      const response=await fetch(url);
+      const data=new Uint8Array(await response.arrayBuffer());
+      if(cancelled)return;
+      task=lib.getDocument({data});
+      const loaded=await task.promise;
+      if(!cancelled){setDoc(loaded);setPdfPages(loaded.numPages);}
+    })().catch(e=>{if(!cancelled)setPdfError(String(e));});
+    return ()=>{cancelled=true;void task?.destroy();};
+  },[pdf,url]);
+  useEffect(()=>{
+    if(!doc)return;
+    let cancelled=false;
+    let render: ReturnType<import("pdfjs-dist").PDFPageProxy["render"]> | undefined;
+    
+    const timer=setTimeout(()=>{void (async()=>{
+      const sheet=await doc.getPage(page); if(cancelled)return;
+      const base=sheet.getViewport({scale:1});
+      const fit=Math.min(Math.max(1,areaSize.width-16)/base.width,Math.max(1,areaSize.height-16)/base.height);
+      const scale=Math.min(8192/Math.max(base.width,base.height),Math.sqrt(24000000/(base.width*base.height)),Math.max(fit*2,fit*zoom*Math.max(2,window.devicePixelRatio)));
+      const viewport=sheet.getViewport({scale});
+      const canvas=window.document.createElement("canvas");canvas.width=Math.ceil(viewport.width);canvas.height=Math.ceil(viewport.height);
+      const context=canvas.getContext("2d");if(!context)return;
+      render=sheet.render({canvas,canvasContext:context,viewport});await render.promise;
+      const blob=await new Promise<Blob|null>(resolve=>canvas.toBlob(resolve));
+      if(blob&&!cancelled){const next=URL.createObjectURL(blob);if(lastImage.current)URL.revokeObjectURL(lastImage.current);lastImage.current=next;setPdfImage(next);}
+    })().catch(e=>{if(!cancelled)setPdfError(String(e));});},120);
+    return ()=>{cancelled=true;clearTimeout(timer);render?.cancel();};
+  },[doc,page,zoom,areaSize]);
 
   const searchPdf = async (value = pdfQuery, exact = false) => {
     const query = value.trim().toLocaleLowerCase();
@@ -99,38 +115,38 @@ export function DiagramPane({
     setPdfMatches([]); setPdfSearchNotice("");
     if (!query) { setPdfSearching(false); return; }
     setPdfSearching(true);
-    let task: ReturnType<typeof import("pdfjs-dist")["getDocument"]> | undefined;
     try {
-      const pdfjs = await import("pdfjs-dist");
-      pdfjs.GlobalWorkerOptions.workerSrc = (await import("pdfjs-dist/build/pdf.worker.min.mjs?url")).default;
-      const response = await fetch(url);
-      task = pdfjs.getDocument({ data: new Uint8Array(await response.arrayBuffer()) });
-      const document = await task.promise;
-      const matches: { page: number; excerpt: string }[] = [];
-      let hasText = false;
-      for (let number = 1; number <= document.numPages; number++) {
-        if (token !== searchToken.current) break;
-        const sheet = await document.getPage(number);
-        const content = await sheet.getTextContent();
-        const text = content.items.map(item => "str" in item ? item.str : "").join(" ");
-        if (text.trim()) hasText = true;
-        const found = exact ? text.toLocaleLowerCase().search(new RegExp("(?<![a-z0-9_])" + query.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "(?![a-z0-9_])")) : text.toLocaleLowerCase().indexOf(query);
-        if (found >= 0) matches.push({ page: number, excerpt: text.slice(Math.max(0, found - 45), found + query.length + 85) });
+      if(!doc){setPdfSearchNotice("Preparando PDF…");return;}
+      if(!indexRef.current) indexRef.current=(async()=>{
+        const result:{page:number;text:string}[]=[];
+        for(let number=1;number<=doc.numPages;number++){
+          const sheet=await doc.getPage(number);const content=await sheet.getTextContent();
+          result.push({page:number,text:content.items.map(item=>"str" in item?item.str:"").join(" ")});
+        }return result;
+      })().catch(e=>{indexRef.current=null;throw e;});
+      const pages=await indexRef.current;
+      const matches:{page:number;excerpt:string}[]=[];
+      const hasText=pages.some(p=>p.text.trim());
+      for(const {page:number,text} of pages){
+        const lower=text.toLocaleLowerCase();
+        let found=lower.indexOf(query);
+        if(exact)while(found>=0&&(/[a-z0-9_]/i.test(lower[found-1]||"")||/[a-z0-9_]/i.test(lower[found+query.length]||"")))found=lower.indexOf(query,found+1);
+        if(found>=0)matches.push({page:number,excerpt:text.slice(Math.max(0,found-45),found+query.length+85)});
       }
       if (token === searchToken.current) {
         setPdfMatches(matches);
-        setPdfSearchNotice(matches.length ? `${matches.length} páginas con coincidencias` : hasText ? "No hay coincidencias." : "Este PDF no contiene texto buscable; necesita OCR.");
+        setPdfSearchNotice(matches.length ? `${matches.length} páginas con coincidencias` : hasText ? (exact ? "Referencia no presente en el PDF. Vincula una equivalencia verificada o busca manualmente." : "No hay coincidencias.") : "Este PDF no contiene texto buscable; necesita OCR.");
         if (matches[0]) { setPage(matches[0].page); setZoom(1); setPan({ x: 0, y: 0 }); setRegions([]); }
       }
     } catch (error) { if (token === searchToken.current) setPdfSearchNotice(error instanceof Error ? error.message : "No pude buscar en el PDF."); }
-    finally { await task?.destroy(); if (token === searchToken.current) setPdfSearching(false); }
+    finally { if (token === searchToken.current) setPdfSearching(false); }
   };
   useEffect(() => () => { searchToken.current++; }, [url]);
   useEffect(() => {
-    if (!pdf || !syncReference) return;
+    if (!pdf || !doc || !syncReference) return;
     setPdfQuery(syncReference);
     void searchPdf(syncReference, true);
-  }, [pdf, url, syncReference]);
+  }, [pdf, url, doc, syncReference]);
 
   return (
     <section className="relative flex min-h-0 min-w-0 flex-col border-border bg-bg-elevated border-l" onContextMenu={(event) => event.preventDefault()}>
@@ -149,10 +165,11 @@ export function DiagramPane({
       </div>
       {pdf ? <label className="flex items-center gap-2 border-b border-border px-3 py-1 text-xs">Página <input aria-label="Página del PDF" type="number" min={1} max={pdfPages} value={page} className="w-16 rounded border border-border bg-bg p-1" onChange={(event) => { setPage(Math.min(pdfPages, Math.max(1, Number(event.target.value) || 1))); setRegions([]); setZoom(1); setPan({ x: 0, y: 0 }); }} /> de {pdfPages}</label> : null}
       {pdf ? <div className="shrink-0 border-b border-border p-2">
-        <form className="flex gap-1" onSubmit={event => { event.preventDefault(); void searchPdf(); }}>
+        <form className="flex gap-1" onSubmit={event => { event.preventDefault(); void searchPdf(pdfQuery, true); }}>
           <input aria-label="Buscar texto en el PDF" placeholder="Buscar referencia o señal…" value={pdfQuery} onChange={event => setPdfQuery(event.target.value)} className="h-11 min-w-0 flex-1 rounded-control border border-border bg-bg px-2 text-sm" />
           <Button type="submit" variant="primary" disabled={pdfSearching}>{pdfSearching ? "Buscando…" : "Buscar"}</Button>
         </form>
+        {onLinkReference && <Button size="sm" variant="quiet" disabled={!pdfMatches.length || pdfSearching} onClick={()=>{if(window.confirm(`¿Guardar ${pdfQuery.trim()} como referencia del componente seleccionado?`))onLinkReference(pdfQuery.trim());}}>Vincular referencia verificada</Button>}
         {onReference && <Button size="sm" variant="quiet" onClick={() => onReference(pdfQuery.trim())}>Localizar referencia en placa</Button>}
         {pdfSearchNotice ? <p role="status" className="mt-1 text-xs text-muted">{pdfSearchNotice}</p> : null}
         {pdfMatches.length ? <div className="mesa-scroll mt-1 max-h-28 overflow-auto">{pdfMatches.map(match => <button key={match.page} className="block min-h-11 w-full rounded-control px-2 py-2 text-left text-xs hover:bg-bg-subtle" onClick={() => { setPage(match.page); setZoom(1); setPan({ x: 0, y: 0 }); setRegions([]); }}><strong>Pág. {match.page}</strong> · {match.excerpt}</button>)}</div> : null}
