@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Languages, LocateFixed, Minus, Plus, X, Columns2, Maximize2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PsdViewer } from "@/components/bench/PsdViewer";
+import { TextOverlay } from "./TextOverlay";
 import { FittedImage } from "./FittedImage";
 import type { TextRegion } from "@/lib/bench/translation";
 import { TranslationPanel } from "@/components/bench/TranslationPanel";
@@ -41,9 +42,8 @@ export function DiagramPane({
   const searchToken = useRef(0);
   const [pdfPages, setPdfPages] = useState(1);
   const [pdfError, setPdfError] = useState("");
-  const [pdfImage, setPdfImage] = useState<string | null>(null);
-  const lastImage=useRef<string|null>(null);
-  useEffect(()=>()=>{if(lastImage.current)URL.revokeObjectURL(lastImage.current);lastImage.current=null;},[url]);
+  const pdfCanvas = useRef<HTMLCanvasElement>(null);
+  const [pageSize, setPageSize] = useState({width:0,height:0});
   const [doc, setDoc] = useState<import("pdfjs-dist").PDFDocumentProxy | null>(null);
   const indexRef = useRef<Promise<{page:number; text:string}[]> | null>(null);
   const [areaSize, setAreaSize] = useState({width:800,height:600});
@@ -56,7 +56,7 @@ export function DiagramPane({
     if (!area) return;
     const onWheel = (event: WheelEvent) => {
       event.preventDefault();
-      setZoom((value) => Math.min(8, Math.max(0.25, value * Math.exp(-event.deltaY * 0.001))));
+      setZoom((value) => Math.min(32, Math.max(0.25, value * Math.exp(-event.deltaY * 0.001))));
     };
     area.addEventListener("wheel", onWheel, { passive: false });
     return () => area.removeEventListener("wheel", onWheel);
@@ -76,7 +76,7 @@ export function DiagramPane({
     if (!pdf) return;
     let cancelled=false;
     let task: ReturnType<typeof import("pdfjs-dist")["getDocument"]> | undefined;
-    setDoc(null); setPdfImage(null); setPdfError(""); indexRef.current=null;
+    setDoc(null); setPageSize({width:0,height:0}); setPdfError(""); indexRef.current=null;
     void (async()=>{
       const lib=await import("pdfjs-dist");
       lib.GlobalWorkerOptions.workerSrc=(await import("pdfjs-dist/build/pdf.worker.min.mjs?url")).default;
@@ -90,24 +90,32 @@ export function DiagramPane({
     return ()=>{cancelled=true;void task?.destroy();};
   },[pdf,url]);
   useEffect(()=>{
-    if(!doc)return;
+    if(!doc || !pdfCanvas.current)return;
     let cancelled=false;
     let render: ReturnType<import("pdfjs-dist").PDFPageProxy["render"]> | undefined;
-    
     const timer=setTimeout(()=>{void (async()=>{
       const sheet=await doc.getPage(page); if(cancelled)return;
       const base=sheet.getViewport({scale:1});
-      const fit=Math.min(Math.max(1,areaSize.width-16)/base.width,Math.max(1,areaSize.height-16)/base.height);
-      const scale=Math.min(8192/Math.max(base.width,base.height),Math.sqrt(24000000/(base.width*base.height)),Math.max(fit*2,fit*zoom*Math.max(2,window.devicePixelRatio)));
-      const viewport=sheet.getViewport({scale});
-      const canvas=window.document.createElement("canvas");canvas.width=Math.ceil(viewport.width);canvas.height=Math.ceil(viewport.height);
-      const context=canvas.getContext("2d");if(!context)return;
-      render=sheet.render({canvas,canvasContext:context,viewport});await render.promise;
-      const blob=await new Promise<Blob|null>(resolve=>canvas.toBlob(resolve));
-      if(blob&&!cancelled){const next=URL.createObjectURL(blob);if(lastImage.current)URL.revokeObjectURL(lastImage.current);lastImage.current=next;setPdfImage(next);}
-    })().catch(e=>{if(!cancelled)setPdfError(String(e));});},120);
+      const w=Math.max(1,areaSize.width), h=Math.max(1,areaSize.height);
+      const fit=Math.min(Math.max(1,w-16)/base.width,Math.max(1,h-16)/base.height);
+      const viewport=sheet.getViewport({scale:fit*zoom});
+      const left=(w-viewport.width)/2+pan.x, top=(h-viewport.height)/2+pan.y;
+      const dpr=Math.min(3,window.devicePixelRatio||1);
+      // Render only the visible viewport at native pixel density, not a scaled page bitmap.
+      const canvas=document.createElement("canvas");
+      canvas.width=Math.ceil(w*dpr); canvas.height=Math.ceil(h*dpr);
+      const context=canvas.getContext("2d",{alpha:false}); if(!context)return;
+      context.fillStyle="#fff";context.fillRect(0,0,canvas.width,canvas.height);
+      render=sheet.render({canvas,canvasContext:context,viewport,transform:[dpr,0,0,dpr,left*dpr,top*dpr]});
+      await render.promise;
+      if(cancelled||!pdfCanvas.current)return;
+      const target=pdfCanvas.current;target.width=canvas.width;target.height=canvas.height;
+      target.getContext("2d")?.drawImage(canvas,0,0);
+      setPageSize({width:base.width,height:base.height});setPdfError("");
+    })().catch(e=>{if(!cancelled)setPdfError(String(e));});},35);
     return ()=>{cancelled=true;clearTimeout(timer);render?.cancel();};
-  },[doc,page,zoom,areaSize]);
+  },[doc,page,zoom,areaSize,pan]);
+  const pageFit=pageSize.width?Math.min(Math.max(1,areaSize.width-16)/pageSize.width,Math.max(1,areaSize.height-16)/pageSize.height)*zoom:0;
 
   const searchPdf = async (value = pdfQuery, exact = false) => {
     const query = value.trim().toLocaleLowerCase();
@@ -157,7 +165,7 @@ export function DiagramPane({
         <Button size="sm" variant={translationOpen ? "primary" : "quiet"} aria-label="Traducir texto de la imagen" onClick={() => setTranslationOpen((value) => !value)}><Languages className="size-4" /><span className="hidden sm:inline">Traducir</span></Button>
         <Button size="icon" variant="ghost" aria-label="Alejar diagrama" onClick={() => setZoom((value) => Math.max(0.25, value / 1.25))}><Minus className="size-4" /></Button>
         <span className="w-12 text-center text-xs tabular-nums">{Math.round(zoom * 100)}%</span>
-        <Button size="icon" variant="ghost" aria-label="Acercar diagrama" onClick={() => setZoom((value) => Math.min(8, value * 1.25))}><Plus className="size-4" /></Button>
+        <Button size="icon" variant="ghost" aria-label="Acercar diagrama" onClick={() => setZoom((value) => Math.min(32, value * 1.25))}><Plus className="size-4" /></Button>
         <Button size="icon" variant="ghost" aria-label="Encuadrar diagrama" title="Encuadrar" onClick={() => { setZoom(1); setPan({ x: 0, y: 0 }); }}><LocateFixed className="size-4" /></Button>
         <Button size="icon" variant="ghost" aria-label="Cerrar diagrama" onClick={onClose}>
           <X className="size-4" />
@@ -196,7 +204,12 @@ export function DiagramPane({
           }}
           onPointerCancel={() => { drag.current = null; }}
         >
-          {pdf && !pdfImage ? <p className="p-4 text-sm text-muted">{pdfError || "Preparando página…"}</p> : <FittedImage url={pdf ? pdfImage! : url} alt={pdf ? `${diagram.name}, página ${page}` : diagram.name} zoom={zoom} pan={pan} regions={regions} dimensions={dimensions} /> }
+          {pdf ? <>
+            <canvas ref={pdfCanvas} className="pointer-events-none absolute inset-0 h-full w-full" aria-label={`${diagram.name}, página ${page}`} />
+            {pageFit>0 && <div className="pointer-events-none absolute" style={{left:(areaSize.width-pageSize.width*pageFit)/2+pan.x,top:(areaSize.height-pageSize.height*pageFit)/2+pan.y,width:pageSize.width*pageFit,height:pageSize.height*pageFit,containerType:"inline-size"}}><TextOverlay regions={regions} {...dimensions}/></div>}
+            {(!doc || pdfError) && <p className="relative p-4 text-sm text-muted">{pdfError || "Preparando página…"}</p>}
+          </> : <FittedImage url={url} alt={diagram.name} zoom={zoom} pan={pan} regions={regions} dimensions={dimensions} />}
+
         </div>
       )}
       {translationOpen ? <TranslationPanel url={url} name={diagram.name} mime={diagram.mime} page={page} onPage={(value) => { setPage(value); setRegions([]); }} onOverlay={(next, width, height) => { setRegions(next); setDimensions({ width, height }); }} onClose={() => setTranslationOpen(false)} /> : null}
